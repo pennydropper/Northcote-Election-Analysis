@@ -1,0 +1,160 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r setup, echo=FALSE}
+
+library(tidyverse)
+library(rvest)
+library(ggmap)
+library(leaflet)
+
+library(rgdal)    # Creates polygon for Northcote District map
+
+data_dir <- "./data"
+
+domain <- "https://www.vec.vic.gov.au/Results/State"
+first_pref_pg_nm <- "FPVbyVotingCentre"
+electorate_nm <- "Northcote"
+dist_pref_pg_nm <- "distribution"
+
+booth_addr_flnm <- "booth_addr.csv"
+
+# Set up polygon names for Northcote District map
+shp_dir <- "./data/SDM565161/ll_gda94/shape/state_assembly_2013/northcote-4000/VMADMIN"
+dstrct_plgon_layer <- "STATE_ASSEMBLY_2013"
+plgon_dist <- "NORTHCOTE"
+
+```
+
+## Read in 2017 Results
+
+```{r}
+first_pref_2107 <- read_html(str_c(domain, "2017", "/", first_pref_pg_nm, electorate_nm, "District.html", sep = "")) %>% 
+  html_nodes(".table-responsive td , .table-responsive th") %>% 
+  html_text() %>% 
+  glimpse()
+
+
+```
+
+
+
+```{r}
+first_pref_cln <- 
+  first_pref_2107 %>%
+  keep(., ~ !str_detect(., "^[:blank:]"))
+    # Remove blank rows
+
+num_cols <- 
+  first_pref_cln %>% 
+  detect_index(~ . == "\r\nVoting Centres\r\n") - 1
+
+first_pref_tbl_raw <- 
+  first_pref_cln %>% 
+  matrix(., ncol = num_cols, byrow = TRUE,
+         dimnames = list(seq(1:(length(first_pref_cln) / num_cols)), 1:num_cols)) %>% 
+  as_tibble() %>%
+  tail(., -2) %>% # Remove the totals rows
+  head(., -2) # Remove the header rows
+  
+candidates <- c(first_pref_2107[2:(num_cols - 2)], "informal")
+
+cand_party <- first_pref_2107[(num_cols + 2):(2 * num_cols - 2)] %>% 
+  if_else(. == "\r\n", "INDEP", .) %>% 
+  print()
+
+```
+
+```{r first_pref_tbl}
+
+first_pref_tbl <-
+  `colnames<-`(first_pref_tbl_raw, 
+               c("poll_src", str_replace_all(candidates, ", ", "_"), "total_votes")) %>% 
+  select(-total_votes) %>% # drop total column
+  mutate(poll_src = str_replace_all(poll_src, "\r\n", "")) %>% 
+  filter(poll_src != "Ordinary Votes Total") %>% 
+  gather(., "cand", "votes", -poll_src) %>% 
+  mutate(votes = parse_integer(votes)) %>% 
+  glimpse(width = 100)
+```
+```{r}
+first_pref_tbl %>% 
+  count(cand)
+```
+
+## Booth locations
+
+```{r booth_addr_lst}
+
+booth_addr_lst <- read_csv(str_c("../", data_dir, booth_addr_flnm, sep = "/"),
+                           col_types = cols(
+                             .default = col_character(),
+                             lon = col_double(),
+                             lat = col_double()
+                           )) %>% 
+  print()
+
+```
+
+```{r warning=FALSE}
+# Had to run this block a number of times.
+# Manually cut and pasted the results to a CSV fiel.
+
+# register_google("ENTER API KEY HERE")
+
+# booth_addr_lst %>% 
+#   mutate(booth_addr = booth_addr %>% str_c(., ", Victoria, Australia", sep = "")) %>% 
+#   pull(booth_addr) %>% 
+#   geocode(., output = c("latlon"))
+
+
+
+```
+
+```{r nrthct_plgon}
+# Set up polygons for Northcote district
+
+# Downloaded from http://services.land.vic.gov.au/SpatialDatamart/index.jsp
+# dir(shp_dir)
+
+shp_dir <- str_c("../", shp_dir, sep = "")
+
+# readOGR(shp_dir, layer = "STATE_ASSEMBLY_2013") %>% 
+          # str()
+
+dstrct_plgon <- readOGR(shp_dir, layer = dstrct_plgon_layer)     
+
+# dstrct_plgon$DISTRICT
+
+nrthct_plgon <- subset(dstrct_plgon, dstrct_plgon$DISTRICT == plgon_dist)
+
+```
+
+
+```{r}
+leaflet(options = leafletOptions(minZoom = 12,
+                                 maxZoom = 16)) %>%
+  addProviderTiles("Esri.WorldTopoMap") %>%
+  
+  addPolygons(data = nrthct_plgon,
+              color = "#c994c7", weight = 1, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.2,
+              # fillColor = ~colorQuantile("YlOrRd", ALAND)(ALAND),
+              highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                  bringToFront = FALSE)) %>% 
+  
+    addCircleMarkers(data = booth_addr_lst,
+                   radius = 1,
+                   popup = ~str_c(booth, " (", booth_addr, ")"),
+                   label = ~booth,
+                   lat = ~lat,
+                   lng = ~lon,
+                   labelOptions = labelOptions(permanent = FALSE),
+                   # color = ~pal(insp_sc_calc),
+                   fill = FALSE)
+```
+

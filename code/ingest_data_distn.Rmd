@@ -1,0 +1,73 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r distn_2107}
+distn_2107 <- 
+  read_html(str_c(domain, "2017", "/", dist_pref_pg_nm, electorate_nm, "District.html", sep = "")) %>% 
+  html_nodes(".table-responsive td , .table-responsive th") %>% 
+  html_text() %>% 
+  glimpse()
+```
+
+```{r}
+
+# first_pref_cln <- 
+#   first_pref_2107 %>%
+#   keep(., ~ !str_detect(., "^[:blank:]"))
+#     # Remove blank rows
+
+num_cols_dist <- 
+  distn_2107 %>% 
+  detect_index(~ . == "TOTAL")
+
+dist_mat_raw <-
+  distn_2107 %>% 
+  matrix(., ncol = num_cols_dist, byrow = TRUE,
+         dimnames = list(seq(1:(length(distn_2107) / num_cols_dist)), 1:num_cols_dist)) %>% 
+  as_tibble() %>% 
+  set_names(., c("round", 
+                 distn_2107[2:(num_cols_dist - 1)] %>% str_replace_all(., ", ", "_"),
+                 "total")) %>% 
+  tail(., -1)
+  
+candidates <- distn_2107[2:(num_cols_dist - 1)]
+
+
+```
+
+```{r}
+dist_tbl <-
+  dist_mat_raw %>% 
+  select(-total) %>% # drop total column
+  filter(round %>% str_detect(., "Total")) %>% 
+  mutate(rnd_num = row_number()) %>% 
+  gather(., "cand", "votes", -c(round, rnd_num)) %>% 
+  mutate(votes = parse_integer(votes)) %>% 
+  select(-round) %>% 
+  glimpse(width = 100)
+```
+
+```{r}
+dist_tbl %>% str()
+
+library(tidyverse)
+
+dist_tbl %>% 
+  select(cand, rnd_num) %>% 
+  mutate(rnd_tot = sum(rnd_num)) %>% 
+  arrange(cand)
+
+dist_tbl %>% 
+  select(cand, rnd_num) %>% 
+  order_by(cand)
+  group_by(cand) %>% 
+  order_by(rnd_num) %>% 
+  mutate(votes_ch = if_else(rnd_num == 1, votes,
+                            100))
+```
+
+

@@ -1,0 +1,70 @@
+---
+title: "Data Visualisation for EDA"
+output: html_notebook
+---
+
+Assumes that the data is already ingested, according to ingest_data.Rmd.  
+
+
+
+```{r Vote source}
+first_pref_tbl %>% 
+  group_by(poll_src) %>% 
+  summarise(votes_sum = sum(votes, na.rm = TRUE)) %>% 
+  mutate(poll_src = poll_src %>% fct_reorder(votes_sum)) %>% 
+  
+  ggplot(aes(x = poll_src, y = votes_sum)) +
+  geom_col() +
+  scale_y_continuous(breaks = seq(0, 10000, 1000)) +
+  coord_flip()
+
+```
+
+Early votes and postal votes are by far the most frequent source.  
+
+Northcote South is remarkably common given that it is on the fringe of the district.  This may be due to the proximity of public and higher density housing.  
+
+```{r}
+first_pref_tbl %>% 
+  group_by(cand) %>% 
+  mutate(poll_src_sh = votes / sum(votes, na.rm = TRUE),
+         cand_votes = str_c(cand, "; ", sum(votes, na.rm = TRUE), sep = ""),
+         vote_sum = sum(votes, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(cand_votes = cand_votes %>% fct_reorder(vote_sum),
+         poll_src = poll_src %>% fct_reorder(votes)) %>% 
+  
+  ggplot(aes(x = cand_votes, y = poll_src_sh, fill = poll_src)) +
+  geom_col(position = "fill", colour = "grey") +
+  
+  coord_flip()
+
+```
+Clare Burns' heartland appears as Northcote North, whereas Lidia Thorp's votes came from a much wider source.
+
+Vince Fontana was very strong in Early Votes, which possibly reflects his high profile early in the campaign.  
+
+Would be good to use plotly with this.
+
+```{r}
+
+# library(plotly)
+
+first_pref_tbl %>% 
+  group_by(cand) %>% 
+  mutate(poll_src_sh = votes / sum(votes, na.rm = TRUE),
+         cand_votes = str_c(cand, "; ", sum(votes, na.rm = TRUE), sep = ""),
+         vote_sum = sum(votes, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(cand_votes = cand_votes %>% fct_reorder(vote_sum),
+         poll_src = poll_src %>% fct_reorder(votes),
+         hover_txt = str_c(cand, ", ", poll_src, ": ", scales::percent(poll_src_sh), sep = "")) %>% 
+  # print()
+  
+  plot_ly(y = ~cand_votes, x = ~poll_src_sh, text = ~hover_txt, 
+          hoverinfo = "text",
+          type = 'bar', name = ~poll_src, orientation = 'h') %>%
+  layout(xaxis = list(title = 'Votes source (cum)'), yaxis = list(title = ""), barmode = 'stack')
+
+```
+
