@@ -44,7 +44,7 @@ dist_tbl <-
   dist_mat_raw %>% 
   select(-total) %>% # drop total column
   filter(round %>% str_detect(., "Total")) %>% 
-  mutate(rnd_num = row_number()) %>% 
+  mutate(rnd_num = row_number() %>% factor(ordered = TRUE)) %>% 
   gather(., "cand", "votes", -c(round, rnd_num)) %>% 
   mutate(votes = parse_integer(votes)) %>% 
   select(-round) %>% 
@@ -52,22 +52,17 @@ dist_tbl <-
 ```
 
 ```{r}
-dist_tbl %>% str()
 
-library(tidyverse)
-
-dist_tbl %>% 
-  select(cand, rnd_num) %>% 
-  mutate(rnd_tot = sum(rnd_num)) %>% 
-  arrange(cand)
-
-dist_tbl %>% 
-  select(cand, rnd_num) %>% 
-  order_by(cand)
+dist_prog_votes <- 
+  dist_tbl %>% 
   group_by(cand) %>% 
-  order_by(rnd_num) %>% 
-  mutate(votes_ch = if_else(rnd_num == 1, votes,
-                            100))
+  arrange(rnd_num) %>% 
+  mutate(votes_ch = if_else(rnd_num == 1, 1L,
+                            votes - lag(votes, 1)),
+         votes_max = max(votes, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(cand = cand %>% fct_reorder(votes_max)) %>% 
+  arrange(cand, rnd_num)
 ```
 
 
