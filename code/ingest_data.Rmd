@@ -21,6 +21,8 @@ first_pref_pg_nm <- "FPVbyVotingCentre"
 electorate_nm <- "Northcote"
 dist_pref_pg_nm <- "distribution"
 
+years <- c("2017", "2018")
+
 booth_addr_flnm <- "booth_addr.csv"
 
 # Set up polygon names for Northcote District map
@@ -30,61 +32,70 @@ plgon_dist <- "NORTHCOTE"
 
 ```
 
-## Read in 2017 Results
+## Set up variables
 
 ```{r}
-first_pref_2107 <- read_html(str_c(domain, "2017", "/", first_pref_pg_nm, electorate_nm, "District.html", sep = "")) %>% 
-  html_nodes(".table-responsive td , .table-responsive th") %>% 
-  html_text() %>% 
-  glimpse()
 
+first_pref_lst <- vector("list", length(years)) %>% 
+  set_names(years)
 
 ```
 
 
+## Read in Results
 
-```{r}
-first_pref_cln <- 
-  first_pref_2107 %>%
-  keep(., ~ !str_detect(., "^[:blank:]"))
-    # Remove blank rows
+```{r first_pref_lst}
 
-num_cols <- 
-  first_pref_cln %>% 
-  detect_index(~ . == "\r\nVoting Centres\r\n") - 1
-
-first_pref_tbl_raw <- 
-  first_pref_cln %>% 
-  matrix(., ncol = num_cols, byrow = TRUE,
-         dimnames = list(seq(1:(length(first_pref_cln) / num_cols)), 1:num_cols)) %>% 
-  as_tibble() %>%
-  tail(., -2) %>% # Remove the totals rows
-  head(., -2) # Remove the header rows
+for (i in seq_along(first_pref_lst)) {
+  # Step through each year for an election
   
-candidates <- c(first_pref_2107[2:(num_cols - 2)], "informal")
+  # i = 1
+  yr <- years[[i]]
+  
+  # first_pref_lst [[i]] <-
+  first_pref <-
+    read_html(str_c(domain, yr, "/", first_pref_pg_nm, electorate_nm, "District.html", sep = "")) %>% 
+    html_nodes(".table-responsive td , .table-responsive th") %>% 
+    html_text() %>%
+    keep(., ~ !str_detect(., "^[:blank:]"))
+  
+  num_cols <- 
+    first_pref %>% 
+    detect_index(~ . == "\r\nVoting Centres\r\n") - 1
+  
+  candidates <- c(first_pref[2:(num_cols - 2)])
+  
+  cand_party <- 
+    first_pref[(num_cols + 2):(2 * num_cols - 2)] %>% 
+    if_else(. == "\r\n", "INDEP", .)
+    
+  first_pref_lst [[i]] <- 
+    first_pref %>%  
+    matrix(., ncol = num_cols, byrow = TRUE,
+           dimnames = list(seq(1:(length(first_pref) / num_cols)), 1:num_cols)) %>% 
+    as_tibble() %>%
+    tail(., -2) %>% # Remove the totals rows
+    head(., -2) %>% # Remove the header rows
+    set_names(c("booth", candidates, "informal", "total")) %>% 
+    map_df(parse_guess) %>% 
+    filter(!str_detect(booth, "Total")) %>% 
+    select(-total) %>% 
+    gather(key = "candidate", value = "votes", -booth)
+  
+}
 
-cand_party <- first_pref_2107[(num_cols + 2):(2 * num_cols - 2)] %>% 
-  if_else(. == "\r\n", "INDEP", .) %>% 
-  print()
+# first_pref_2107 <- read_html(str_c(domain, "2017", "/", first_pref_pg_nm, electorate_nm, "District.html", sep = "")) %>% 
+#   html_nodes(".table-responsive td , .table-responsive th") %>% 
+#   html_text() %>% 
+#   glimpse()
+
+first_pref <- 
+  bind_rows(first_pref_lst, .id = "year") 
+
 
 ```
 
-```{r first_pref_tbl}
 
-first_pref_tbl <-
-  `colnames<-`(first_pref_tbl_raw, 
-               c("poll_src", str_replace_all(candidates, ", ", "_"), "total_votes")) %>% 
-  select(-total_votes) %>% # drop total column
-  mutate(poll_src = str_replace_all(poll_src, "\r\n", "")) %>% 
-  filter(poll_src != "Ordinary Votes Total") %>% 
-  gather(., "cand", "votes", -poll_src) %>% 
-  mutate(votes = parse_integer(votes)) %>% 
-  glimpse(width = 100)
-```
-```{r}
-first_pref_tbl %>% 
-  count(cand)
-```
 
 ## Booth locations
 
