@@ -29,11 +29,47 @@ distn_plot
 ```
 
 ```{r}
-distn %>% 
-  group_by(year, candidate) %>% 
-  mutate(round_max = max(round)) %>% 
-  mutate(round = factor(round, levels = 1:10, ordered = TRUE)) %>% 
+pref %>% 
+  # group_by(year, candidate) %>% 
+  # mutate(votes_max = max(votes)) %>% 
+  # mutate(round = factor(round, levels = 1:10, ordered = TRUE)) %>% 
+  # ungroup() %>% 
+  ggplot(aes(x = from_cand, y = votes, fill = to_cand)) +
+  geom_bar(stat = "identity", position = "dodge", na.rm = TRUE) +
+  coord_flip() +
+  facet_grid(year ~ ., scale = "free")
+```
+```{r}
+pref %>% 
+  filter(year == "2017") %>% 
+  # group_by(year, candidate) %>% 
+  # mutate(votes_max = max(votes)) %>% 
+  # mutate(round = factor(round, levels = 1:10, ordered = TRUE)) %>% 
+  # ungroup() %>% 
+  ggplot(aes(x = from_cand, y = votes_sh, fill = to_cand)) +
+  geom_bar(stat = "identity", position = "dodge", na.rm = TRUE) +
+  coord_flip() +
+  facet_grid(year ~ ., scale = "free")
+```
+
+```{r}
+pref_point <- 
+  pref %>% 
+  filter(year == "2017") %>% 
+  group_by(year, from_cand) %>% 
+  mutate(rounds_max = n()) %>% 
   ungroup() %>% 
-  filter(candidate == "FONTANA_Vince")
+  mutate(pref_rank = factor(pref_rank, levels = 1:10)) %>% 
+
+  ggplot(aes(x = fct_reorder(from_cand, rounds_max), y = fct_reorder(to_cand, votes_sum), size = votes_sh, colour = pref_rank)) +
+  geom_point(na.rm = TRUE) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(title = "How votes were preferenced to different candidates",
+        x = "From candidate",
+       y = "To candidate")
+
+ggplotly(pref_point)
+# pref_point
+
 ```
 

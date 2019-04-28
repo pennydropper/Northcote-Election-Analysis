@@ -73,7 +73,7 @@ first_pref_tbl %>%
 dist_prog_votes %>% 
   ggplot(aes(x = rnd_num, y = cand)) +
   geom_point(aes(size = votes, colour = votes_ch), na.rm = TRUE) +
-  scale_size(trans = "log10", breaks = c(10, 100, 500, 1000, 3000, 5000)) +
+  # scale_size(trans = "log10", breaks = c(10, 100, 500, 1000, 3000, 5000)) +
   scale_colour_gradient(trans = "log10")
 
 ```
