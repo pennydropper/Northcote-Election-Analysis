@@ -1,0 +1,39 @@
+---
+title: "Preferences EDA"
+output: html_notebook
+---
+
+Assumes that the data has already been ingested.
+
+### Cumulative votes by round
+
+```{r, fig.width=7, fig.height=10}
+distn_plot <- 
+  distn %>% 
+  group_by(year, candidate) %>% 
+  mutate(votes_max = max(votes)) %>% 
+  mutate(round = factor(round, levels = 1:10, ordered = TRUE)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = fct_reorder(candidate, votes_max), y = votes, fill = round)) +
+  geom_bar(stat = "identity", position = "dodge", na.rm = TRUE) +
+  coord_flip() +
+  facet_grid(year ~ ., scale = "free") +
+  labs(title = "Kat Theophanous won on the back of Liberal votes",
+        x = "Candidate",
+       y = "Cumulative votes after preferences")
+
+# ggplotly(distn_plot)
+
+distn_plot
+
+```
+
+```{r}
+distn %>% 
+  group_by(year, candidate) %>% 
+  mutate(round_max = max(round)) %>% 
+  mutate(round = factor(round, levels = 1:10, ordered = TRUE)) %>% 
+  ungroup() %>% 
+  filter(candidate == "FONTANA_Vince")
+```
+
