@@ -84,10 +84,6 @@ for (i in seq_along(first_pref_lst)) {
   
 }
 
-# first_pref_2107 <- read_html(str_c(domain, "2017", "/", first_pref_pg_nm, electorate_nm, "District.html", sep = "")) %>% 
-#   html_nodes(".table-responsive td , .table-responsive th") %>% 
-#   html_text() %>% 
-#   glimpse()
 
 first_pref <- 
   bind_rows(first_pref_lst, .id = "year") 

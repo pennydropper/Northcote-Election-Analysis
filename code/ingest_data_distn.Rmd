@@ -5,64 +5,80 @@ output: html_notebook
 
 
 
-```{r distn_2107}
-distn_2107 <- 
-  read_html(str_c(domain, "2017", "/", dist_pref_pg_nm, electorate_nm, "District.html", sep = "")) %>% 
-  html_nodes(".table-responsive td , .table-responsive th") %>% 
-  html_text() %>% 
-  glimpse()
-```
+```{r distn}
 
-```{r}
+distn_lst <- vector("list", length(years)) %>% 
+  set_names(years)
 
-# first_pref_cln <- 
-#   first_pref_2107 %>%
-#   keep(., ~ !str_detect(., "^[:blank:]"))
-#     # Remove blank rows
+pref_lst <- vector("list", length(years)) %>% 
+  set_names(years)
 
-num_cols_dist <- 
-  distn_2107 %>% 
-  detect_index(~ . == "TOTAL")
-
-dist_mat_raw <-
-  distn_2107 %>% 
-  matrix(., ncol = num_cols_dist, byrow = TRUE,
-         dimnames = list(seq(1:(length(distn_2107) / num_cols_dist)), 1:num_cols_dist)) %>% 
-  as_tibble() %>% 
-  set_names(., c("round", 
-                 distn_2107[2:(num_cols_dist - 1)] %>% str_replace_all(., ", ", "_"),
-                 "total")) %>% 
-  tail(., -1)
+for (i in seq_along(distn_lst)) {
+  # Step through each year for an election
   
-candidates <- distn_2107[2:(num_cols_dist - 1)]
+  # i = 1
+  yr <- years[[i]]
+  
+  # distn_yr_lst [[i]] <-
+  distn_yr <-
+    read_html(str_c(domain, yr, "/",  dist_pref_pg_nm, electorate_nm, "District.html", sep = "")) %>% 
+    html_nodes(".table-responsive td , .table-responsive th") %>% 
+    html_text() %>% 
+    keep(., ~ !str_detect(., "^[:blank:]"))
+  
+  num_cols <- 
+    distn_yr %>% 
+    detect_index(~ . == "TOTAL")
+  
+  candidates <- c(distn_yr[2:(num_cols - 2)])
+  
+  distn_raw <-
+    # Table with measure, candidate and votes
+    # measure is a combination of progressive totals and allocation of preferences
+    distn_yr %>% 
+    matrix(., ncol = num_cols, byrow = TRUE,
+           dimnames = list(seq(1:(length(distn_yr) / num_cols)), 1:num_cols)) %>% 
+    as_tibble() %>% 
+    set_names(., c("measure", 
+                   distn_yr[2:(num_cols - 1)] %>% str_replace_all(., ", ", "_"),
+                   "total")) %>% 
+    select(-total) %>% 
+    tail(., -1) %>% 
+    gather("candidate", "votes", -measure) %>% 
+    mutate(votes = parse_integer(votes)) %>% 
+    filter(!is.na(votes))
+  
+  pref_lst[[i]] <- 
+    # Table showing how preferences were allocated
+    distn_raw %>% 
+    filter(str_detect(measure, "^Transfer of")) %>% 
+    mutate(from_cand = str_replace(measure, "^.*ballot papers of ", "") %>% 
+             str_replace(., " \\(.*", "") %>% 
+             str_replace_all(., ", ", "_")) %>% 
+    group_by(from_cand) %>% 
+    mutate(votes_sum = sum(votes, na.rm = TRUE),
+           votes_sh = votes / votes_sum) %>% 
+    arrange(votes_sum, desc(votes_sh)) %>% 
+    select(from_cand, to_cand = candidate, votes, votes_sh, votes_sum, row_head = measure) %>% 
+    ungroup()
+  
+  distn_lst [[i]] <- 
+    # Table showing number of votes after each round
+    distn_raw %>% 
+    filter(!str_detect(measure, "^Transfer of")) %>% 
+    group_by(candidate) %>% 
+    mutate(round = row_number(),
+           received = votes - lag(votes)) %>% 
+    select(candidate, round, votes, received, row_head = measure) %>% 
+    ungroup()
+  
+}
 
+distn <- 
+  bind_rows(distn_lst, .id = "year") 
+
+pref <-
+  bind_rows(pref_lst, .id = "year")
 
 ```
-
-```{r}
-dist_tbl <-
-  dist_mat_raw %>% 
-  select(-total) %>% # drop total column
-  filter(round %>% str_detect(., "Total")) %>% 
-  mutate(rnd_num = row_number() %>% factor(ordered = TRUE)) %>% 
-  gather(., "cand", "votes", -c(round, rnd_num)) %>% 
-  mutate(votes = parse_integer(votes)) %>% 
-  select(-round) %>% 
-  glimpse(width = 100)
-```
-
-```{r}
-
-dist_prog_votes <- 
-  dist_tbl %>% 
-  group_by(cand) %>% 
-  arrange(rnd_num) %>% 
-  mutate(votes_ch = if_else(rnd_num == 1, 1L,
-                            votes - lag(votes, 1)),
-         votes_max = max(votes, na.rm = TRUE)) %>% 
-  ungroup() %>% 
-  mutate(cand = cand %>% fct_reorder(votes_max)) %>% 
-  arrange(cand, rnd_num)
-```
-
 
