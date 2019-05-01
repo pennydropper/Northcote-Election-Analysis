@@ -54,22 +54,18 @@ pref %>%
 
 ```{r}
 pref_point <- 
-  pref %>% 
-  filter(year == "2017") %>% 
-  group_by(year, from_cand) %>% 
-  mutate(rounds_max = n()) %>% 
-  ungroup() %>% 
-  mutate(pref_rank = factor(pref_rank, levels = 1:10)) %>% 
+  plot_disn_sh("2017")
 
-  ggplot(aes(x = fct_reorder(from_cand, rounds_max), y = fct_reorder(to_cand, votes_sum), size = votes_sh, colour = pref_rank)) +
-  geom_point(na.rm = TRUE) +
-  theme(axis.text.x = element_text(angle = 90)) +
-  labs(title = "How votes were preferenced to different candidates",
-        x = "From candidate",
-       y = "To candidate")
+# ggplotly(pref_point)
+pref_point
 
-ggplotly(pref_point)
-# pref_point
+```
 
+```{r}
+pref_point <- 
+  plot_disn_sh("2018")
+
+# ggplotly(pref_point)
+pref_point
 ```
 
