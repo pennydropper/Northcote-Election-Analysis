@@ -48,7 +48,7 @@ for (i in seq_along(distn_lst)) {
     mutate(votes = parse_integer(votes)) %>% 
     filter(!is.na(votes))
   
-  pref_lst[[i]] <- 
+  pref_lst[[i]] <-
     # Table showing how preferences were allocated
     distn_raw %>% 
     filter(str_detect(measure, "^Transfer of")) %>% 
@@ -59,7 +59,8 @@ for (i in seq_along(distn_lst)) {
     mutate(votes_sum = sum(votes, na.rm = TRUE),
            votes_sh = votes / votes_sum) %>% 
     arrange(votes_sum, desc(votes_sh)) %>% 
-    select(from_cand, to_cand = candidate, votes, votes_sh, votes_sum, row_head = measure) %>% 
+    mutate(pref_rank = row_number()) %>% 
+    select(from_cand, to_cand = candidate, votes, pref_rank, votes_sh, votes_sum, row_head = measure) %>% 
     ungroup()
   
   distn_lst [[i]] <- 
