@@ -1,0 +1,92 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+### Pull data together
+
+```{r}
+booth_addr_lst
+```
+
+```{r}
+
+votes_2017 <- 
+  first_pref %>% 
+  filter(year == "2017") %>% 
+  group_by(booth) %>% 
+  summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+  inner_join(booth_addr_lst, by = "booth") %>% 
+  glimpse()
+```
+
+
+
+
+```{r}
+leaflet(options = leafletOptions(minZoom = 12,
+                                 maxZoom = 16)) %>%
+  addProviderTiles("Esri.WorldTopoMap") %>%
+  
+  addPolygons(data = nrthct_plgon,
+              color = "#c994c7", weight = 1, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.2,
+              # fillColor = ~colorQuantile("YlOrRd", ALAND)(ALAND),
+              highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                  bringToFront = FALSE)) %>% 
+  
+    addCircleMarkers(data = votes_2017,
+                   radius = ~votes / 250,
+                   popup = ~str_c(booth, " (", booth_addr, ") ", votes, " votes"),
+                   label = ~booth,
+                   lat = ~lat,
+                   lng = ~lon,
+                   labelOptions = labelOptions(permanent = FALSE),
+                   # color = ~pal(insp_sc_calc),
+                   fill = FALSE)
+```
+
+```{r}
+votes_2018 <- 
+  first_pref %>% 
+  filter(year == "2017") %>% 
+  group_by(booth) %>% 
+  summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+  inner_join(booth_addr_lst, by = "booth") %>% 
+  glimpse()
+```
+
+```{r}
+leaflet(options = leafletOptions(minZoom = 12,
+                                 maxZoom = 16)) %>%
+  addProviderTiles("Esri.WorldTopoMap") %>%
+  
+  addPolygons(data = nrthct_plgon,
+              color = "#c994c7", weight = 1, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.2,
+              # fillColor = ~colorQuantile("YlOrRd", ALAND)(ALAND),
+              highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                  bringToFront = FALSE)) %>% 
+  
+    addCircleMarkers(data = votes_2018,
+                   radius = ~votes / 250,
+                   popup = ~str_c(booth, " (", booth_addr, ") ", votes, " votes"),
+                   label = ~booth,
+                   lat = ~lat,
+                   lng = ~lon,
+                   labelOptions = labelOptions(permanent = FALSE),
+                   # color = ~pal(insp_sc_calc),
+                   fill = FALSE)
+```
+
+```{r}
+  first_pref %>% 
+  # filter(year == "2017") %>% 
+  group_by(booth, year) %>% 
+  summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+  # inner_join(booth_addr_lst, by = "booth") %>% 
+  ggplot(aes(x = fct_reorder(booth, votes), y = votes, fill = factor(year, levels = c("2018", "2017")))) +
+  geom_bar(stat = "identity", position = "dodge", na.rm = TRUE) +
+  coord_flip()
+```
+
