@@ -14,9 +14,14 @@ booth_addr_lst
 votes_2017 <- 
   first_pref %>% 
   filter(year == "2017") %>% 
-  group_by(booth) %>% 
+  group_by(booth, year) %>% 
   summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  left_join(booth_sh %>% 
+              filter(cand_party == "AUSTRALIAN GREENS") %>% 
+              select(year, booth, grn_sh = booth_sh), by = c("year", "booth")) %>% 
   inner_join(booth_addr_lst, by = "booth") %>% 
+  mutate(circ_sz = scales::rescale(votes, c(1, 8))) %>% 
   glimpse()
 ```
 
@@ -36,20 +41,21 @@ leaflet(options = leafletOptions(minZoom = 12,
                                                   bringToFront = FALSE)) %>% 
   
     addCircleMarkers(data = votes_2017,
-                   radius = ~votes / 250,
+                   radius = ~circ_sz,
                    popup = ~str_c(booth, " (", booth_addr, ") ", votes, " votes"),
+                   # color = ~grn_sh,
                    label = ~booth,
                    lat = ~lat,
                    lng = ~lon,
                    labelOptions = labelOptions(permanent = FALSE),
                    # color = ~pal(insp_sc_calc),
-                   fill = FALSE)
+                   fill = TRUE)
 ```
 
 ```{r}
 votes_2018 <- 
   first_pref %>% 
-  filter(year == "2017") %>% 
+  filter(year == "2018") %>% 
   group_by(booth) %>% 
   summarise(votes = sum(votes, na.rm = TRUE)) %>% 
   inner_join(booth_addr_lst, by = "booth") %>% 
@@ -76,7 +82,7 @@ leaflet(options = leafletOptions(minZoom = 12,
                    lng = ~lon,
                    labelOptions = labelOptions(permanent = FALSE),
                    # color = ~pal(insp_sc_calc),
-                   fill = FALSE)
+                   fill = TRUE)
 ```
 
 ```{r}
@@ -88,5 +94,33 @@ leaflet(options = leafletOptions(minZoom = 12,
   ggplot(aes(x = fct_reorder(booth, votes), y = votes, fill = factor(year, levels = c("2018", "2017")))) +
   geom_bar(stat = "identity", position = "dodge", na.rm = TRUE) +
   coord_flip()
+```
+
+```{r booth_sh}
+booth_sh <- 
+  first_pref %>% 
+  inner_join(cands, by = c("year" = "year", "candidate" = "candidates")) %>% 
+  filter(cand_party %in% c("AUSTRALIAN LABOR PARTY", "AUSTRALIAN GREENS")) %>%
+  group_by(booth, year) %>% 
+  mutate(booth_sh = votes / sum(votes, na.rm = TRUE),
+         votes_sum = sum(votes, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  arrange(year, booth, cand_party) %>% 
+  print()
+```
+
+```{r, fig.height=10, fig.width=7}
+booth_sh %>% 
+  filter(cand_party == "AUSTRALIAN GREENS") %>% 
+  left_join(booth_addr_lst, by = "booth") %>% 
+  mutate(booth = str_replace_all(booth, "[\\n\\r]",""),
+         phys_booth = if_else(is.na(booth_addr), "Off site", "On site")) %>% 
+  # mutate(booth = fct_reorder(booth, booth_sh)) %>% 
+  ggplot(aes(x = fct_rev(booth), y = booth_sh, fill = year)) +
+  geom_bar(stat = "identity", position = "dodge", na.rm = TRUE) +
+  geom_hline(yintercept = 0.5, colour = "green", linetype = 2) +
+  scale_y_continuous(labels = scales::percent) + 
+  coord_flip(ylim = c(0, 0.7)) +
+  facet_wrap(phys_booth ~ ., scales = "free", ncol = 1)
 ```
 

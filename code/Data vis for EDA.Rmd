@@ -8,8 +8,8 @@ Assumes that the data is already ingested, according to ingest_data.Rmd.
 
 
 ```{r Vote source}
-first_pref_tbl %>% 
-  group_by(poll_src) %>% 
+first_pref %>% 
+  group_by(poll_src, year) %>% 
   summarise(votes_sum = sum(votes, na.rm = TRUE)) %>% 
   mutate(poll_src = poll_src %>% fct_reorder(votes_sum)) %>% 
   
@@ -19,6 +19,24 @@ first_pref_tbl %>%
   coord_flip()
 
 ```
+
+
+```{r, fig.height=10, fig.width=8}
+
+first_pref %>% 
+  mutate(year = factor(year) %>% fct_rev()) %>% 
+  group_by(booth, year) %>%
+  summarise(votes_sum = sum(votes, na.rm = TRUE)) %>%
+  ungroup() %>% 
+  mutate(booth = booth %>% fct_reorder(votes_sum)) %>%
+  
+  ggplot(aes(x = booth, y = votes_sum, fill = year)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(breaks = seq(0, 20000, 2000)) +
+  coord_flip()
+
+```
+
 
 Early votes and postal votes are by far the most frequent source.  
 
