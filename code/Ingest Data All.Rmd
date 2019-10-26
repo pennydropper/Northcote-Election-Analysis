@@ -356,3 +356,20 @@ cands_std <-
   glimpse()
 ```
 
+# Save data
+```{r objects_core}
+
+objects_core <- c("booth_addr_lst",
+                  "cands_std",
+                  "distn",
+                  "elec_dates",
+                  "first_pref",
+                  "nrthct_plgon",
+                  "pref",
+                  "two_pp")
+
+objects_core %>% 
+  walk(., ~ write_rds(., str_c(data_dir, str_c(., ".rds", sep = ""), sep = "/"), "none"))
+
+```
+
