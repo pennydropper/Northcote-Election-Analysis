@@ -144,3 +144,93 @@ first_pref <-
 
 ```
 
+# Ingest Distribution of preferences
+
+```{r}
+
+distn_pref_css_sels <- ".table-responsive td , .table-responsive th"
+
+dist_pref_urls <-
+  elec_dates$elec_ID %>%
+  map_chr(., ~ dist_pref_url_(domain, ., dist_pref_pg_nm, electorate_nm, distn_pref_css_sels)) %>%
+  set_names(elec_dates$elec_ID) %>% 
+  keep(., ~!is.na(.))
+
+dist_lst <- vector("list", length(dist_pref_urls)) %>%
+  set_names(names(dist_pref_urls))
+
+pref_lst <- vector("list", length(dist_pref_urls)) %>% 
+  set_names(names(dist_pref_urls))
+
+for (i in seq_along(dist_pref_urls)) {
+  # Step through each year for an election
+  
+  # i = 3
+  yr <- names(dist_pref_urls)[i]
+  
+  dist_pref_url <- dist_pref_urls[i]
+  
+  # distn_yr_lst [[i]] <-
+  distn_yr <-
+    read_html(dist_pref_url) %>% 
+    html_nodes(distn_pref_css_sels) %>% 
+    html_text() %>% 
+    keep(., ~ !str_detect(., "^[:blank:]"))
+  
+  num_cols <- 
+    distn_yr %>% 
+    detect_index(~ . == "TOTAL")
+  
+  candidates <- c(distn_yr[2:(num_cols - 1)])
+  
+  distn_raw <-
+    # Table with measure, candidate and votes
+    # measure is a combination of progressive totals and allocation of preferences
+    distn_yr %>% 
+    matrix(., ncol = num_cols, byrow = TRUE,
+           dimnames = list(seq(1:(length(distn_yr) / num_cols)), 1:num_cols)) %>% 
+    as_tibble() %>% 
+    set_names(., c("measure", 
+                   distn_yr[2:(num_cols - 1)], # %>% str_replace_all(., ", ", "_"),
+                   "total")) %>% 
+    select(-total) %>% 
+    tail(., -1) %>% 
+    gather("candidate", "votes", -measure) %>% 
+    mutate(votes = parse_integer(votes)) %>% 
+    filter(!is.na(votes))
+  
+  pref_lst[[i]] <-
+    # Table showing how preferences were allocated
+    distn_raw %>% 
+    filter(str_detect(measure, "^Transfer of")) %>% 
+    mutate(from_cand = str_replace(measure, "^.*ballot papers of ", "") %>% 
+             str_replace(., " \\(.*", "")) %>% 
+             # str_replace_all(., ", ", "_")) %>% 
+    group_by(from_cand) %>% 
+    mutate(votes_sum = sum(votes, na.rm = TRUE),
+           votes_sh = votes / votes_sum) %>% 
+    arrange(votes_sum, desc(votes_sh)) %>% 
+    mutate(pref_rank = row_number()) %>% 
+    select(from_cand, to_cand = candidate, votes, pref_rank, votes_sh, votes_sum) %>% 
+    ungroup()
+  
+  dist_lst [[i]] <- 
+    # Table showing number of votes after each round
+    distn_raw %>% 
+    filter(!str_detect(measure, "^Transfer of")) %>% 
+    group_by(candidate) %>% 
+    mutate(round = row_number(),
+           received = votes - lag(votes)) %>% 
+    select(candidate, round, votes, received) %>% 
+    ungroup()
+  
+}
+
+distn <- 
+  bind_rows(dist_lst, .id = "year")
+
+pref <-
+  bind_rows(pref_lst, .id = "year")
+
+```
+
