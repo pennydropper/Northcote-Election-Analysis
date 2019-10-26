@@ -7,22 +7,35 @@ output: html_notebook
 
 ```{r distn}
 
-distn_lst <- vector("list", length(years)) %>% 
-  set_names(years)
+years_w_disn <-
+  years %>% 
+  keep(~ . != "1999")
 
-pref_lst <- vector("list", length(years)) %>% 
-  set_names(years)
+distn_lst <- vector("list", length(years_w_disn)) %>% 
+  set_names(years_w_disn)
+
+pref_lst <- vector("list", length(years_w_disn)) %>% 
+  set_names(years_w_disn)
 
 for (i in seq_along(distn_lst)) {
   # Step through each year for an election
   
-  # i = 1
-  yr <- years[[i]]
+  # i = 3
+  yr <- years_w_disn[[i]]
+  
+  dist_pref_url <- str_c(domain, yr, "/",  dist_pref_pg_nm, electorate_nm, "District.html", sep = "")
+  distn_pref_css_sels <- ".table-responsive td , .table-responsive th"
+
+  # Determine if URL is a valid page
+  if (read_html(dist_pref_url) %>% html_nodes(distn_pref_css_sels) %>% length() == 0) {
+    # Page address is invalid, try alternative address
+    dist_pref_url <- str_c(domain, yr, dist_pref_pg_nm, electorate_nm, "District.html", sep = "")
+  }
   
   # distn_yr_lst [[i]] <-
   distn_yr <-
-    read_html(str_c(domain, yr, "/",  dist_pref_pg_nm, electorate_nm, "District.html", sep = "")) %>% 
-    html_nodes(".table-responsive td , .table-responsive th") %>% 
+    read_html(dist_pref_url) %>% 
+    html_nodes(distn_pref_css_sels) %>% 
     html_text() %>% 
     keep(., ~ !str_detect(., "^[:blank:]"))
   
@@ -83,3 +96,95 @@ pref <-
 
 ```
 
+
+```{r 2p_pref}
+
+distn_lst <- vector("list", length(years)) %>% 
+  set_names(years)
+
+pref_lst <- vector("list", length(years)) %>% 
+  set_names(years)
+
+dist_2p_pref_pg_nm <- "TCPbyVotingCentre"
+
+for (i in seq_along(distn_lst)) {
+  # Step through each year for an election
+  
+  # i = 1
+  yr <- years[[i]]
+  
+  dist_pref_url <- str_c(domain, yr, "/",  dist_2p_pref_pg_nm, electorate_nm, "District.html", sep = "")
+  distn_pref_css_sels <- ".table-responsive :nth-child(1)"
+
+  # Determine if URL is a valid page
+  if (read_html(dist_pref_url) %>% html_nodes(distn_pref_css_sels) %>% length() == 0) {
+    # Page address is invalid, try alternative address
+    dist_pref_url <- str_c(domain, yr, dist_2p_pref_pg_nm, electorate_nm, "District.html", sep = "")
+  }
+  
+  # distn_yr_lst [[i]] <-
+  distn_yr <-
+    read_html(dist_pref_url) %>% 
+    html_nodes(distn_pref_css_sels) %>% 
+    html_text() %>% 
+    keep(., ~ !str_detect(., "^[:blank:]"))
+  
+  distn_yr[1] %>% 
+    str_split_fixed(., "\\r\\n", n = Inf)
+  
+  num_cols <- 
+    distn_yr %>% 
+    detect_index(~ . == "TOTAL")
+  
+  candidates <- c(distn_yr[2:(num_cols - 2)])
+  
+  distn_raw <-
+    # Table with measure, candidate and votes
+    # measure is a combination of progressive totals and allocation of preferences
+    distn_yr %>% 
+    matrix(., ncol = num_cols, byrow = TRUE,
+           dimnames = list(seq(1:(length(distn_yr) / num_cols)), 1:num_cols)) %>% 
+    as_tibble() %>% 
+    set_names(., c("measure", 
+                   distn_yr[2:(num_cols - 1)] %>% str_replace_all(., ", ", "_"),
+                   "total")) %>% 
+    select(-total) %>% 
+    tail(., -1) %>% 
+    gather("candidate", "votes", -measure) %>% 
+    mutate(votes = parse_integer(votes)) %>% 
+    filter(!is.na(votes))
+  
+  pref_lst[[i]] <-
+    # Table showing how preferences were allocated
+    distn_raw %>% 
+    filter(str_detect(measure, "^Transfer of")) %>% 
+    mutate(from_cand = str_replace(measure, "^.*ballot papers of ", "") %>% 
+             str_replace(., " \\(.*", "") %>% 
+             str_replace_all(., ", ", "_")) %>% 
+    group_by(from_cand) %>% 
+    mutate(votes_sum = sum(votes, na.rm = TRUE),
+           votes_sh = votes / votes_sum) %>% 
+    arrange(votes_sum, desc(votes_sh)) %>% 
+    mutate(pref_rank = row_number()) %>% 
+    select(from_cand, to_cand = candidate, votes, pref_rank, votes_sh, votes_sum, row_head = measure) %>% 
+    ungroup()
+  
+  distn_lst [[i]] <- 
+    # Table showing number of votes after each round
+    distn_raw %>% 
+    filter(!str_detect(measure, "^Transfer of")) %>% 
+    group_by(candidate) %>% 
+    mutate(round = row_number(),
+           received = votes - lag(votes)) %>% 
+    select(candidate, round, votes, received, row_head = measure) %>% 
+    ungroup()
+  
+}
+
+distn <- 
+  bind_rows(distn_lst, .id = "year") 
+
+pref <-
+  bind_rows(pref_lst, .id = "year")
+
+```

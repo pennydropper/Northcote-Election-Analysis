@@ -1,0 +1,71 @@
+---
+title: "Ingest all "
+output: html_notebook
+---
+
+# Introduction
+This file simply loads the raw data and performs preliminary data cleanup for later analysis.
+
+Data to load:  
+
+- List of elections.  
+- First preference results.  
+- Distribution of preferences.  
+- Two candidate preferred.  
+- Election polygons (for leaflet maps).  
+
+```{r setup}
+library(tidyverse)
+library(rvest)
+library(leaflet)
+library(readxl)
+
+library(plotly)
+
+library(rgdal)    # Creates polygon for Northcote District map
+
+data_dir <- ".././data"
+
+elec_dates_flnm <- "Vic Elections.xlsx"
+
+domain <- "https://www.vec.vic.gov.au/Results/State"
+electorate_nm <- "Northcote"
+
+first_pref_pg_nm <- "FPVbyVotingCentre"
+# e.g. https://www.vec.vic.gov.au/Results/State2018/FPVbyVotingCentreNorthcoteDistrict.html
+# e.g. https://www.vec.vic.gov.au/Results/state1999FPVbyVotingCentreNorthcoteDistrict.html
+
+dist_pref_pg_nm <- "distribution"
+# e.g. https://www.vec.vic.gov.au/Results/State2018/distributionNorthcoteDistrict.html
+
+two_cand_pref_1 <- "TCPbyVotingCentre"
+two_cand_pref_2 <- "TCPbyVC"
+# e.g. https://www.vec.vic.gov.au/Results/State2018/TCPbyVotingCentreNorthcoteDistrict.html
+# e.g. https://www.vec.vic.gov.au/Results/state1999TCPbyVCNorthcoteDistrict.html
+
+booth_addr_flnm <- "booth_addr.csv"
+
+# Set up polygon names for Northcote District map
+shp_dir <- "./data/SDM565161/ll_gda94/shape/state_assembly_2013/northcote-4000/VMADMIN"
+dstrct_plgon_layer <- "STATE_ASSEMBLY_2013"
+plgon_dist <- "NORTHCOTE"
+
+# First preference page CSS selectors
+first_pref_css_sels <- ".table-responsive td , .table-responsive th"
+
+vote_cen_col_header <- "VOTING CENTRES"
+
+```
+
+# Import Election Years
+
+```{r elec_dates}
+
+elec_dates <- 
+  read_excel(str_c(data_dir, elec_dates_flnm, sep = "/")) %>% 
+  mutate(date = as.Date(date),
+         elec_ID = as.character(elec_ID)) %>% 
+  glimpse()
+
+```
+
