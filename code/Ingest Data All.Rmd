@@ -320,3 +320,39 @@ nrthct_plgon <- subset(dstrct_plgon, dstrct_plgon$DISTRICT == plgon_dist)
 
 ```
 
+# Booth locations
+
+```{r booth_addr_lst}
+
+booth_addr_lst <- read_csv(str_c(data_dir, booth_addr_flnm, sep = "/"),
+                           col_types = cols(
+                             .default = col_character(),
+                             lon = col_double(),
+                             lat = col_double()
+                           )) %>% 
+  print()
+
+```
+
+# Tidy up Candidate Party list
+
+```{r write cand_party_raw, eval=FALSE}
+cands %>% 
+  select(cand_party) %>% 
+  distinct() %>% 
+  write_csv(str_c(data_dir, "cand_party_raw.csv", sep = "/"))
+```
+
+```{r party_std}
+party_std <-
+  read_excel(str_c(data_dir, "cand_party_raw.xlsx", sep = "/")) %>% 
+  glimpse()
+```
+
+```{r cands_std}
+cands_std <- 
+  cands %>% 
+  left_join(party_std, by = "cand_party") %>% 
+  glimpse()
+```
+
