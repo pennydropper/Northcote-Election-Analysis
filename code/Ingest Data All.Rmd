@@ -357,7 +357,7 @@ cands_std <-
 ```
 
 # Save data
-```{r objects_core}
+```{r objects_core, eval=FALSE}
 
 objects_core <- c("booth_addr_lst",
                   "cands_std",
@@ -369,7 +369,11 @@ objects_core <- c("booth_addr_lst",
                   "two_pp")
 
 objects_core %>% 
-  walk(., ~ write_rds(., str_c(data_dir, str_c(., ".rds", sep = ""), sep = "/"), "none"))
+  walk(., ~ write_rds(get(.), str_c(data_dir, str_c(., ".rds", sep = ""), sep = "/"), "none"))
+
+objects_core %>% 
+  walk(., ~ assign(., read_rds(str_c(data_dir, str_c(., ".rds", sep = ""), sep = "/"))))
+
 
 ```
 
