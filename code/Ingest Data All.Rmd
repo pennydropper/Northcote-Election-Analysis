@@ -37,6 +37,7 @@ first_pref_pg_nm <- "FPVbyVotingCentre"
 
 dist_pref_pg_nm <- "distribution"
 # e.g. https://www.vec.vic.gov.au/Results/State2018/distributionNorthcoteDistrict.html
+# Distribution data only starts from 2010.
 
 two_cand_pref_1 <- "TCPbyVotingCentre"
 two_cand_pref_2 <- "TCPbyVC"
@@ -66,6 +67,80 @@ elec_dates <-
   mutate(date = as.Date(date),
          elec_ID = as.character(elec_ID)) %>% 
   glimpse()
+
+```
+
+# Import first preference results
+
+```{r first_pref}
+
+years <- elec_dates$elec_ID
+
+first_pref_lst <- vector("list", length(years)) %>% 
+  set_names(years)
+
+cands_lst <- vector("list", length(years)) %>% 
+  set_names(years)
+
+for (i in seq_along(first_pref_lst)) {
+  # Step through each year for an election
+  
+  # i = 3
+  yr <- years[[i]]
+  first_pref_url <- str_c(domain, yr, "/", first_pref_pg_nm, electorate_nm, "District.html", sep = "")
+
+  # Determine if URL is a valid page
+  if (read_html(first_pref_url) %>% html_nodes(first_pref_css_sels) %>% length() == 0) {
+    # Page address is invalid, try alternative address
+    first_pref_url <- str_c(domain, yr, first_pref_pg_nm, electorate_nm, "District.html", sep = "")
+    # i.e. it drops the "/" after the yr.
+  }
+      
+  # first_pref_lst [[i]] <-
+  first_pref <-
+    read_html(first_pref_url) %>% 
+    html_nodes(first_pref_css_sels) %>% 
+    html_text() %>%
+    keep(., ~ !str_detect(., "^[:blank:]")) 
+
+  num_cols <- 
+    first_pref %>% 
+    detect_index(~ str_to_upper(.) %>% str_replace_all("\r\n", "") == vote_cen_col_header) - 1
+  
+  candidates <- c(first_pref[2:(num_cols - 2)])
+  
+  cand_party <- 
+    first_pref[(num_cols + 2):(2 * num_cols - 2)] %>% 
+    str_replace_all(., "\r\n", "") %>% 
+    if_else(. == "", "INDEP", .)
+  
+  cands_lst[[i]] <- data.frame(candidates, cand_party, stringsAsFactors = FALSE)
+    
+  first_pref_lst [[i]] <- 
+    first_pref %>%  
+    matrix(., ncol = num_cols, byrow = TRUE,
+           dimnames = list(seq(1:(length(first_pref) / num_cols)), 1:num_cols)) %>% 
+    as_tibble() %>%
+    tail(., -2) %>% # Remove the totals rows
+    head(., -2) %>% # Remove the header rows
+    set_names(c("booth", candidates, "informal", "total")) %>% 
+    map_df(parse_guess) %>% 
+    filter(!str_detect(booth, "Total")) %>% 
+    select(-total) %>% 
+    gather(key = "candidate", value = "votes", -booth)
+  
+}
+
+cands <-
+  bind_rows(cands_lst, .id = "year") %>% 
+  rename(candidate = candidates) %>% 
+  print()
+
+first_pref <- 
+  bind_rows(first_pref_lst, .id = "year") %>% 
+  mutate(booth = str_remove_all(booth, "\\r\\n")) %>% 
+  left_join(cands, by = c("year", "candidate")) %>% 
+  print()
 
 ```
 
