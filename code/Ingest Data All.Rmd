@@ -223,7 +223,7 @@ for (i in seq_along(two_pp_urls)) {
   
 }
 
-two_pp <- 
+distn <- 
   bind_rows(dist_lst, .id = "year")
 
 pref <-
@@ -233,7 +233,7 @@ pref <-
 
 # Ingest Two candidate preferred
 
-```{r}
+```{r two_pp}
 
 two_pp_css_sels <- ".table-responsive td , .table-responsive th"
 
@@ -276,13 +276,15 @@ for (i in seq_along(two_pp_urls)) {
     matrix(., ncol = num_cols, byrow = TRUE,
            dimnames = list(seq(1:(length(two_pp_yr) / num_cols)), 1:num_cols)) %>% 
     as_tibble() %>% 
-    set_names(., c(two_pp_yr[(num_cols + 1):(2 * num_cols)])) %>% 
+    set_names(., c("booth",
+                   two_pp_yr[2:3],
+                   two_pp_yr[(num_cols + 1 + 3):(2 * num_cols)])) %>% 
     select(-`Total votes polled`) %>% 
-    set_names(., ~str_replace_all(., "\\W", "_")) %>% 
+    # set_names(., ~str_replace_all(., "\\W", "_")) %>% 
     rename(booth = 1) %>% 
     tail(., -2) %>% 
     head(., -2) %>% 
-    gather("party", "votes", -booth) %>% 
+    gather("candidate", "votes", -booth) %>% 
     mutate(votes = parse_integer(votes)) %>% 
     filter(!is.na(votes))
   
@@ -294,6 +296,27 @@ for (i in seq_along(two_pp_urls)) {
 
 two_pp <- 
   bind_rows(two_pp_lst, .id = "year")
+
+```
+
+# Election polygons (for leaflet maps)
+
+```{r nrthct_plgon}
+# Set up polygons for Northcote district
+
+# Downloaded from http://services.land.vic.gov.au/SpatialDatamart/index.jsp
+# dir(shp_dir)
+
+shp_dir <- str_c("../", shp_dir, sep = "")
+
+# readOGR(shp_dir, layer = "STATE_ASSEMBLY_2013") %>% 
+          # str()
+
+dstrct_plgon <- readOGR(shp_dir, layer = dstrct_plgon_layer)     
+
+# dstrct_plgon$DISTRICT
+
+nrthct_plgon <- subset(dstrct_plgon, dstrct_plgon$DISTRICT == plgon_dist)
 
 ```
 

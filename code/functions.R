@@ -45,13 +45,15 @@ dist_pref_url_ <- function(p_domain, p_yr, p_dist_pref_pg_nm, p_electorate_nm, c
   
   if (page_length(dist_url_[1], css_sel) > 0) {
     # First page is legitmate
-    dist_url_[1]
+    url_rtn <- dist_url_[1]
   } else if (page_length(dist_url_[2], css_sel) > 0) {
     # Alt page is legitimate
-    dist_url_[2]
+    url_rtn <- dist_url_[2]
   } else {
-    NA_character_
+    url_rtn <- NA_character_
   }
+  
+  url_rtn
   
 }
 
@@ -59,7 +61,7 @@ url_by_elec <- function(years, domain, dist_pref_pg_nm, electorate_nm, distn_pre
   # Returns vector of valid URLs, named by the election
   years %>%
     map_chr(., ~ dist_pref_url_(domain, ., dist_pref_pg_nm, electorate_nm, distn_pref_css_sels)) %>%
-    set_names(years) %>% 
+    set_names(years) %>%
     keep(., ~!is.na(.))
 }
 
