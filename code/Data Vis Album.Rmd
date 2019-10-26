@@ -1,0 +1,39 @@
+---
+title: "Northcote Election Data Visualsation notebook"
+output: html_notebook
+---
+
+# Introduction
+This workbook is an album of possible data visualisations for the Northcote Election EDA.
+
+```{r setup}
+library(tidyverse)
+library(rvest)
+library(leaflet)
+library(readxl)
+
+library(plotly)
+
+library(rgdal)    # Creates polygon for Northcote District map
+```
+
+
+## Possible List  
+- Bar chart of voters by booth by election.  
+- Chart showing the strongest 3 (or so) booths for each candidate relative to other candidates.
+- Two-party-preferred timeline.  
+- How preferences were allocated
+
+
+# Bar chart of voters by booth by election
+
+```{r, fig.height=10, fig.width=8}
+# elections <- c("2018", "2017", "1999")
+
+bc_booths <-
+  bar_chart_voters_by_booth(elections = c("2018", "2017", "1999"))
+
+ggplotly(bc_booths)
+
+```
+
