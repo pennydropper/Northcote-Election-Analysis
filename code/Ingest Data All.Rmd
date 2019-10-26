@@ -35,7 +35,7 @@ first_pref_pg_nm <- "FPVbyVotingCentre"
 # e.g. https://www.vec.vic.gov.au/Results/State2018/FPVbyVotingCentreNorthcoteDistrict.html
 # e.g. https://www.vec.vic.gov.au/Results/state1999FPVbyVotingCentreNorthcoteDistrict.html
 
-dist_pref_pg_nm <- "distribution"
+two_pp_pg_nm <- "distribution"
 # e.g. https://www.vec.vic.gov.au/Results/State2018/distributionNorthcoteDistrict.html
 # Distribution data only starts from 2010.
 
@@ -146,52 +146,49 @@ first_pref <-
 
 # Ingest Distribution of preferences
 
-```{r}
+```{r pref}
 
-distn_pref_css_sels <- ".table-responsive td , .table-responsive th"
+two_pp_pref_css_sels <- ".table-responsive td , .table-responsive th"
 
-dist_pref_urls <-
-  elec_dates$elec_ID %>%
-  map_chr(., ~ dist_pref_url_(domain, ., dist_pref_pg_nm, electorate_nm, distn_pref_css_sels)) %>%
-  set_names(elec_dates$elec_ID) %>% 
-  keep(., ~!is.na(.))
+two_pp_urls <-
+  url_by_elec(elec_dates$elec_ID, domain, two_pp_pg_nm, electorate_nm, two_pp_pref_css_sels)
 
-dist_lst <- vector("list", length(dist_pref_urls)) %>%
-  set_names(names(dist_pref_urls))
+dist_lst <- vector("list", length(two_pp_urls)) %>%
+  set_names(names(two_pp_urls))
 
-pref_lst <- vector("list", length(dist_pref_urls)) %>% 
-  set_names(names(dist_pref_urls))
+pref_lst <- vector("list", length(two_pp_urls)) %>% 
+  set_names(names(two_pp_urls))
 
-for (i in seq_along(dist_pref_urls)) {
+for (i in seq_along(two_pp_urls)) {
   # Step through each year for an election
   
   # i = 3
-  yr <- names(dist_pref_urls)[i]
+  yr <- names(two_pp_urls)[i]
   
-  dist_pref_url <- dist_pref_urls[i]
+  two_pp_url <- two_pp_urls[i]
   
-  # distn_yr_lst [[i]] <-
-  distn_yr <-
-    read_html(dist_pref_url) %>% 
-    html_nodes(distn_pref_css_sels) %>% 
+  # two_pp_yr_lst [[i]] <-
+  two_pp_yr <-
+    read_html(two_pp_url) %>% 
+    html_nodes(two_pp_pref_css_sels) %>% 
     html_text() %>% 
     keep(., ~ !str_detect(., "^[:blank:]"))
   
   num_cols <- 
-    distn_yr %>% 
+    two_pp_yr %>% 
     detect_index(~ . == "TOTAL")
   
-  candidates <- c(distn_yr[2:(num_cols - 1)])
+  candidates <- c(two_pp_yr[2:(num_cols - 1)])
   
-  distn_raw <-
+  two_pp_raw <-
     # Table with measure, candidate and votes
     # measure is a combination of progressive totals and allocation of preferences
-    distn_yr %>% 
+    two_pp_yr %>% 
     matrix(., ncol = num_cols, byrow = TRUE,
-           dimnames = list(seq(1:(length(distn_yr) / num_cols)), 1:num_cols)) %>% 
+           dimnames = list(seq(1:(length(two_pp_yr) / num_cols)), 1:num_cols)) %>% 
     as_tibble() %>% 
     set_names(., c("measure", 
-                   distn_yr[2:(num_cols - 1)], # %>% str_replace_all(., ", ", "_"),
+                   two_pp_yr[2:(num_cols - 1)], # %>% str_replace_all(., ", ", "_"),
                    "total")) %>% 
     select(-total) %>% 
     tail(., -1) %>% 
@@ -201,7 +198,7 @@ for (i in seq_along(dist_pref_urls)) {
   
   pref_lst[[i]] <-
     # Table showing how preferences were allocated
-    distn_raw %>% 
+    two_pp_raw %>% 
     filter(str_detect(measure, "^Transfer of")) %>% 
     mutate(from_cand = str_replace(measure, "^.*ballot papers of ", "") %>% 
              str_replace(., " \\(.*", "")) %>% 
@@ -216,7 +213,7 @@ for (i in seq_along(dist_pref_urls)) {
   
   dist_lst [[i]] <- 
     # Table showing number of votes after each round
-    distn_raw %>% 
+    two_pp_raw %>% 
     filter(!str_detect(measure, "^Transfer of")) %>% 
     group_by(candidate) %>% 
     mutate(round = row_number(),
@@ -226,11 +223,77 @@ for (i in seq_along(dist_pref_urls)) {
   
 }
 
-distn <- 
+two_pp <- 
   bind_rows(dist_lst, .id = "year")
 
 pref <-
   bind_rows(pref_lst, .id = "year")
+
+```
+
+# Ingest Two candidate preferred
+
+```{r}
+
+two_pp_css_sels <- ".table-responsive td , .table-responsive th"
+
+two_pp_urls <-
+  url_by_elec(elec_dates$elec_ID, domain, two_cand_pref_1, electorate_nm, two_pp_css_sels) %>% 
+  append(., url_by_elec(elec_dates$elec_ID, domain, two_cand_pref_2, electorate_nm, two_pp_css_sels))
+
+two_pp_lst <- vector("list", length(two_pp_urls)) %>%
+  set_names(names(two_pp_urls))
+
+# pref_lst <- vector("list", length(two_pp_urls)) %>% 
+#   set_names(names(two_pp_urls))
+
+for (i in seq_along(two_pp_urls)) {
+  # Step through each year for an election
+  
+  # i = 3
+  yr <- names(two_pp_urls)[i]
+  
+  two_pp_url <- two_pp_urls[i]
+  
+  two_pp_yr <-
+    read_html(two_pp_url) %>% 
+    html_nodes(two_pp_css_sels) %>%  #two_pp_css_sels) %>% 
+    html_text() %>% 
+    ins_unit(., 6, "") %>% 
+    # Found that I had to insert this manually - hope it holds
+    keep(., ~ !str_detect(., "^[:blank:]")) %>% 
+    str_replace_all(., "\r\n", "")
+  
+  num_cols <-
+    two_pp_yr %>% 
+    detect_index(~ str_detect(., "Voting")) - 1L
+  
+  candidates <- two_pp_yr[2:3]
+  
+  two_pp_raw <-
+    # Tibble showing booth, party and 2-party-preferred votes
+    two_pp_yr %>% 
+    matrix(., ncol = num_cols, byrow = TRUE,
+           dimnames = list(seq(1:(length(two_pp_yr) / num_cols)), 1:num_cols)) %>% 
+    as_tibble() %>% 
+    set_names(., c(two_pp_yr[(num_cols + 1):(2 * num_cols)])) %>% 
+    select(-`Total votes polled`) %>% 
+    set_names(., ~str_replace_all(., "\\W", "_")) %>% 
+    rename(booth = 1) %>% 
+    tail(., -2) %>% 
+    head(., -2) %>% 
+    gather("party", "votes", -booth) %>% 
+    mutate(votes = parse_integer(votes)) %>% 
+    filter(!is.na(votes))
+  
+  two_pp_lst[[i]] <- 
+    # Table showing number of votes after each round
+    two_pp_raw
+  
+}
+
+two_pp <- 
+  bind_rows(two_pp_lst, .id = "year")
 
 ```
 

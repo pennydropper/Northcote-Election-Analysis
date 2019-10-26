@@ -55,3 +55,18 @@ dist_pref_url_ <- function(p_domain, p_yr, p_dist_pref_pg_nm, p_electorate_nm, c
   
 }
 
+url_by_elec <- function(years, domain, dist_pref_pg_nm, electorate_nm, distn_pref_css_sels) {
+  # Returns vector of valid URLs, named by the election
+  years %>%
+    map_chr(., ~ dist_pref_url_(domain, ., dist_pref_pg_nm, electorate_nm, distn_pref_css_sels)) %>%
+    set_names(years) %>% 
+    keep(., ~!is.na(.))
+}
+
+ins_unit <- function(x, pos = 1L, val) {
+  # Inserts a unit into a vector, x, at postion pos
+  x %>% 
+    head(., pos -1) %>% 
+    append(., val) %>% 
+    append(., tail(x, -pos + 1))
+}
