@@ -27,7 +27,7 @@ library(rgdal)    # Creates polygon for Northcote District map
 
 # Bar chart of voters by booth by election
 
-```{r, fig.height=10, fig.width=8}
+```{r bar_chart_voters_by_booth, fig.height=10, fig.width=8}
 # elections <- c("2018", "2017", "1999")
 
 bc_booths <-
@@ -35,5 +35,83 @@ bc_booths <-
 
 ggplotly(bc_booths)
 
+```
+
+# Two-party-preferred timeline
+
+```{r two_pp_timeline}
+booths_exclude <- c("Ordinary Votes Total")
+
+two_pp_detail <- 
+  two_pp %>% 
+  filter(!(booth %in% booths_exclude)) %>% 
+  # join to party
+  left_join(cands_std %>% select(candidate, party_std, year, party_colour), by = c("candidate", "year")) %>% 
+  # join to date
+  left_join(elec_dates %>% select(elec_ID, date), by = c("year" = "elec_ID")) %>% 
+  glimpse()
+
+
+
+two_pp_detail %>% 
+  group_by(party_std, date, party_colour) %>% 
+  summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  complete(party_std, date) %>% 
+  group_by(date) %>% 
+  mutate(two_pp_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = date, y = two_pp_sh, colour = party_std, shape = party_std)) +
+  geom_line()
+
+```
+
+```{r}
+two_pp_plot <- 
+  two_pp_detail %>% 
+  mutate(party_std = coalesce(party_std, "Informal")) %>% 
+  group_by(party_std, date, party_colour) %>% 
+  summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  # complete(party_std, date) %>% 
+  group_by(date) %>% 
+  mutate(two_pp_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = date, y = two_pp_sh, colour = party_std, shape = party_std)) +
+  geom_line(na.rm = TRUE) +
+  geom_point(na.rm = TRUE) +
+  geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey") +
+  scale_y_continuous("2 party preferred share", labels = scales::percent) +
+  scale_color_manual("Party", values = party_colours()) +
+  scale_shape_discrete("Party") +
+  labs(title = "Two party preferred share", x = "")
+
+ggplotly(two_pp_plot)
+
+```
+
+```{r}
+two_pp %>% 
+  group_by(year, booth) %>% 
+  summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+  spread(key = year, value = votes)
+```
+
+```{r}
+  two_pp_detail %>% 
+  group_by(party_std, date) %>% 
+  summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  # complete(party_std, date) %>% 
+  group_by(date) %>% 
+  mutate(two_pp_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+  ungroup()
+```
+
+```{r}
+two_pp_detail %>% 
+  filter(is.na(party_std)) %>% 
+  group_by(candidate) %>% 
+  summarise(votes = sum(votes, na.rm = TRUE))
 ```
 
