@@ -72,3 +72,34 @@ ins_unit <- function(x, pos = 1L, val) {
     append(., val) %>% 
     append(., tail(x, -pos + 1))
 }
+
+bar_chart_voters_by_booth <- function(elections = c("2018", "2017", "1999")) {
+  # Returns ggplot bar chart with number of voters by booth
+  first_pref %>% 
+    filter(year %in% elections) %>% 
+    mutate(year = factor(year) %>% fct_rev()) %>% 
+    group_by(booth, year) %>%
+    summarise(votes_sum = sum(votes, na.rm = TRUE)) %>%
+    ungroup() %>% 
+    complete(booth, year) %>% 
+    group_by(booth) %>% 
+    mutate(booth_votes = sum(votes_sum, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(votes_sum = coalesce(votes_sum, 0),
+           booth = booth %>% fct_reorder(booth_votes)) %>% 
+    
+    ggplot(aes(x = booth, y = votes_sum, fill = year)) +
+    geom_col(position = "dodge") +
+    scale_y_continuous(breaks = seq(0, 20000, 2000)) +
+    scale_fill_discrete(drop = FALSE) +
+    coord_flip()
+}
+
+party_colours <- function() {
+  # Returns named vector mapping parties to colours
+  party_std %>% 
+    select(party_std, party_colour) %>% 
+    distinct() %>% 
+    deframe() %>% 
+    append(c("Informal" = "grey"))
+}
