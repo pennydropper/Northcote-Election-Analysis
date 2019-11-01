@@ -157,31 +157,62 @@ votes_by_booth_elec <-
   summarise(votes = sum(votes, na.rm = TRUE)) %>% 
   ungroup() %>% 
   left_join(two_pp_by_booth_nondom %>% select(-votes), by = c("date", "booth")) %>% 
+  filter(!is.na(party_std)) 
+
+votes_by_booth_all <-
+  votes_by_booth_elec %>% 
+  filter(votes != 0) %>% 
+  group_by(date, year, party_std) %>% 
+  summarise(booth = "All",
+            votes_sh = sum(votes_sh * votes / sum(votes, na.rm = TRUE)),
+            votes = sum(votes, na.rm = TRUE),
+            hov_text = NA_character_) %>% 
+  ungroup() %>% 
+  select(names(votes_by_booth_elec)) %>% 
+  union(votes_by_booth_elec) %>% 
+  filter(votes != 0) %>% 
+  # mutate(booth_ggp = fct_lump(booth, 8, w = votes)) %>% 
   glimpse()
 ```
 ```{r votes_by_elect_ggp}
 votes_by_elect_ggp <-
-  votes_by_booth_elec %>% 
-  group_by(date) %>% 
+  votes_by_booth_all %>% 
+  mutate(booth_ggp = fct_lump(booth, 8, w = votes)) %>% 
+  group_by(date, booth_ggp, year) %>% 
   summarise(votes = sum(votes, na.rm = TRUE)) %>% 
   ungroup() %>% 
-  left_join(two_pp_all_booth %>% select(-votes) %>% filter(non_dom_party), by = c("date")) %>% 
-  mutate(hov_text = str_c("Total voters: ", scales::comma(votes), "<br>", party_std, " 2pp: ", scales::percent(votes_sh))) %>% 
+  mutate(hov_text = str_c(booth_ggp, ": ", scales::comma(votes))) %>% 
+  
   ggplot(aes(x = date, y = votes)) +
-  scale_y_continuous("Total votes", labels = scales::comma) +
-  scale_color_manual("Party", values = party_colours()) +
-  scale_shape_discrete("Party") +
+  scale_y_continuous("Votes", labels = scales::comma) +
+  # scale_color_manual("Party", values = party_colours()) +
+  scale_shape_discrete("Polling Booth") +
   expand_limits(y = 0) +
-  geom_line(colour = "blue", size = 0.5) +
-  geom_point(aes(colour = party_std, shape = party_std, text = hov_text)) +
-  labs(title = "Total votes", x = "",
-       caption = "Westgarth highlighted. Hover mouse for more detail")
+  geom_point(aes(text = hov_text, shape = booth_ggp)) +
+  geom_line(colour = "blue", size = 0.25, aes(group = booth_ggp)) +
+  geom_line(data = votes_by_booth_all %>% filter(booth == "All"), colour = "red", size = 0.5) +
+  labs(title = "Total votes", x = "")
   
 ggplotly(votes_by_elect_ggp, tooltip = "text")
   
 ```
 ```{r}
-two_pp_all_booth %>% 
-  glimpse()
+votes_by_booth_elec %>% 
+  filter(votes != 0) %>% 
+  group_by(date, year, party_std) %>% 
+  summarise(booth = "All",
+            votes_sh = sum(votes_sh * votes / sum(votes, na.rm = TRUE)),
+            votes = sum(votes, na.rm = TRUE),
+            hov_text = NA_character_) %>% 
+  ungroup() %>% 
+  select(names(votes_by_booth_elec)) %>% 
+  union(votes_by_booth_elec) %>% 
+  filter(votes != 0) %>% 
+  mutate(booth_ggp = fct_lump(booth, 8, w = votes)) %>% 
+  print()
+```
+```{r}
+votes_by_booth_elec %>% 
+  filter(is.na(party_std))
 ```
 
