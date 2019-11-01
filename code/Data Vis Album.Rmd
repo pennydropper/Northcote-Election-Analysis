@@ -20,9 +20,15 @@ library(rgdal)    # Creates polygon for Northcote District map
 
 ## Possible List  
 - Bar chart of voters by booth by election.  
+  - If only 1 year is selected, colour grade the booths by 2pp
 - Chart showing the strongest 3 (or so) booths for each candidate relative to other candidates.
 - Two-party-preferred timeline.  
-- How preferences were allocated
+- How preferences were allocated.  
+  - By party, excluding INDEP
+  - By candidate (shows party and years of being candidate after name)
+- Map of polling booths, bubble colour showing 2pp
+- Timeline of total votes.
+  - Also by polling booth
 
 
 # Bar chart of voters by booth by election
@@ -69,21 +75,23 @@ two_pp_all_booth <-
     party_std == dom_party_name ~ FALSE,
     party_std == "Informal" ~ FALSE,
     TRUE ~ TRUE
-  ))
+  ),
+  booth = "All booths",
+  hov_text = str_c(booth, "<br>", party_std, "<br>2pp: ", scales::percent(votes_sh)))
 
   
 two_pp_plot <- 
   two_pp_all_booth %>% 
   ggplot(aes(x = date, y = votes_sh, colour = party_std, shape = party_std)) +
   geom_line(na.rm = TRUE) +
-  geom_point(na.rm = TRUE) +
+  geom_point(na.rm = TRUE, aes(text = hov_text)) +
   geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey") +
   scale_y_continuous("2 party preferred share", labels = scales::percent) +
   scale_color_manual("Party", values = party_colours()) +
   scale_shape_discrete("Party") +
   labs(title = "Two party preferred share", x = "")
 
-ggplotly(two_pp_plot)
+ggplotly(two_pp_plot, tooltip = "text")
 
 ```
 
@@ -108,7 +116,8 @@ two_pp_by_booth_nondom <-
   filter(!is.na(party_std)) %>% 
     # remove informal votes from chart
   filter(party_std != dom_party_name) %>% 
-  semi_join(booth_addr_lst, by = "booth") %>% 
+  # semi_join(booth_addr_lst, by = "booth") %>% 
+  mutate(hov_text = str_c(booth, "<br>", party_std, "<br>", scales::percent(votes_sh))) %>%
   glimpse()
 ```
 
@@ -116,20 +125,63 @@ two_pp_by_booth_nondom <-
 
 two_pp_by_booth_ggplot <-
   two_pp_by_booth_nondom %>% 
+  semi_join(booth_addr_lst, by = "booth") %>% 
   # mutate(booth = factor(booth)) %>% 
-  ggplot(aes(x = date, y = votes_sh)) +
-  geom_line(aes(shape = booth), na.rm = TRUE, colour = "grey") +
-  geom_point(aes(shape = booth), na.rm = TRUE, colour = "grey") +
+  ggplot(aes(x = date, y = votes_sh, shape = party_std, group = booth)) +
+  geom_line(na.rm = TRUE, colour = "grey", aes(group = booth, shape = party_std)) +
+  geom_point(na.rm = TRUE, colour = "grey", size = 0.5, aes(text = hov_text)) +
   geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey") +
   scale_y_continuous("2 party preferred share", labels = scales::percent) +
-  scale_shape_manual("Booth", values = 97:111) +
+  # scale_shape_manual("Booth", values = 97:111) +
   # scale_shape_identity() +
-  labs(title = "Two party preferred share", x = "") +
   geom_line(data = two_pp_by_booth_nondom %>% filter(booth == "Westgarth"), colour = "black") +
-  geom_point(data = two_pp_by_booth_nondom %>% filter(booth == "Westgarth"), colour = "black") +
-  geom_line(data = two_pp_all_booth %>% filter(non_dom_party), colour = "blue")
+  geom_point(data = two_pp_by_booth_nondom %>% filter(booth == "Westgarth"), aes(text = hov_text, colour = party_std)) +
+  scale_color_manual("Party", values = party_colours()) +
+  scale_shape_discrete("Party") +
+  geom_line(data = two_pp_all_booth %>% filter(non_dom_party), colour = "blue") +
+  geom_point(data = two_pp_all_booth %>% filter(non_dom_party), aes(text = hov_text, colour = party_std)) +
+  labs(title = "Two party preferred share by booth", x = "",
+       caption = "Westgarth highlighted. Hover mouse for more detail")
 
 
-ggplotly(two_pp_by_booth_ggplot)
+ggplotly(two_pp_by_booth_ggplot, tooltip = "hov_text")
+```
+
+# Timeline of total votes
+
+```{r votes_by_booth_elec}
+votes_by_booth_elec <- 
+  first_pref %>% 
+  inner_join(elec_dates %>% select(year = elec_ID, date), by = "year") %>% 
+  group_by(date, booth, year) %>% 
+  summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  left_join(two_pp_by_booth_nondom %>% select(-votes), by = c("date", "booth")) %>% 
+  glimpse()
+```
+```{r votes_by_elect_ggp}
+votes_by_elect_ggp <-
+  votes_by_booth_elec %>% 
+  group_by(date) %>% 
+  summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  left_join(two_pp_all_booth %>% select(-votes) %>% filter(non_dom_party), by = c("date")) %>% 
+  mutate(hov_text = str_c("Total voters: ", scales::comma(votes), "<br>", party_std, " 2pp: ", scales::percent(votes_sh))) %>% 
+  ggplot(aes(x = date, y = votes)) +
+  scale_y_continuous("Total votes", labels = scales::comma) +
+  scale_color_manual("Party", values = party_colours()) +
+  scale_shape_discrete("Party") +
+  expand_limits(y = 0) +
+  geom_line(colour = "blue", size = 0.5) +
+  geom_point(aes(colour = party_std, shape = party_std, text = hov_text)) +
+  labs(title = "Total votes", x = "",
+       caption = "Westgarth highlighted. Hover mouse for more detail")
+  
+ggplotly(votes_by_elect_ggp, tooltip = "text")
+  
+```
+```{r}
+two_pp_all_booth %>% 
+  glimpse()
 ```
 
