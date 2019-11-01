@@ -46,38 +46,35 @@ two_pp_detail <-
   two_pp %>% 
   filter(!(booth %in% booths_exclude)) %>% 
   # join to party
-  left_join(cands_std %>% select(candidate, party_std, year, party_colour), by = c("candidate", "year")) %>% 
+  left_join(cands_std %>% select(candidate, party_std, year), by = c("candidate", "year")) %>% 
   # join to date
   left_join(elec_dates %>% select(elec_ID, date), by = c("year" = "elec_ID")) %>% 
   glimpse()
 
-
-
-two_pp_detail %>% 
-  group_by(party_std, date, party_colour) %>% 
-  summarise(votes = sum(votes, na.rm = TRUE)) %>% 
-  ungroup() %>% 
-  complete(party_std, date) %>% 
-  group_by(date) %>% 
-  mutate(two_pp_sh = votes / sum(votes, na.rm = TRUE)) %>% 
-  ungroup() %>% 
-  ggplot(aes(x = date, y = two_pp_sh, colour = party_std, shape = party_std)) +
-  geom_line()
-
 ```
 
 ```{r}
-two_pp_plot <- 
+two_pp_all_booth <-
   two_pp_detail %>% 
   mutate(party_std = coalesce(party_std, "Informal")) %>% 
-  group_by(party_std, date, party_colour) %>% 
+  group_by(party_std, date) %>% 
   summarise(votes = sum(votes, na.rm = TRUE)) %>% 
   ungroup() %>% 
   # complete(party_std, date) %>% 
   group_by(date) %>% 
-  mutate(two_pp_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+  mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
   ungroup() %>% 
-  ggplot(aes(x = date, y = two_pp_sh, colour = party_std, shape = party_std)) +
+  mutate(non_dom_party = case_when(
+    is.null(party_std) ~ FALSE,
+    party_std == dom_party_name ~ FALSE,
+    party_std == "Informal" ~ FALSE,
+    TRUE ~ TRUE
+  ))
+
+  
+two_pp_plot <- 
+  two_pp_all_booth %>% 
+  ggplot(aes(x = date, y = votes_sh, colour = party_std, shape = party_std)) +
   geom_line(na.rm = TRUE) +
   geom_point(na.rm = TRUE) +
   geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey") +
@@ -98,20 +95,41 @@ two_pp %>%
 ```
 
 ```{r}
+dom_party_name <- "Australian Labor Party"
+
+two_pp_by_booth_nondom <-
+  # tibble with the non-dominant party
   two_pp_detail %>% 
-  group_by(party_std, date) %>% 
+  group_by(booth, date, party_std) %>% 
   summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+  group_by(booth, date) %>% 
+  mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
   ungroup() %>% 
-  # complete(party_std, date) %>% 
-  group_by(date) %>% 
-  mutate(two_pp_sh = votes / sum(votes, na.rm = TRUE)) %>% 
-  ungroup()
+  filter(!is.na(party_std)) %>% 
+    # remove informal votes from chart
+  filter(party_std != dom_party_name) %>% 
+  semi_join(booth_addr_lst, by = "booth") %>% 
+  glimpse()
 ```
 
 ```{r}
-two_pp_detail %>% 
-  filter(is.na(party_std)) %>% 
-  group_by(candidate) %>% 
-  summarise(votes = sum(votes, na.rm = TRUE))
+
+two_pp_by_booth_ggplot <-
+  two_pp_by_booth_nondom %>% 
+  # mutate(booth = factor(booth)) %>% 
+  ggplot(aes(x = date, y = votes_sh)) +
+  geom_line(aes(shape = booth), na.rm = TRUE, colour = "grey") +
+  geom_point(aes(shape = booth), na.rm = TRUE, colour = "grey") +
+  geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey") +
+  scale_y_continuous("2 party preferred share", labels = scales::percent) +
+  scale_shape_manual("Booth", values = 97:111) +
+  # scale_shape_identity() +
+  labs(title = "Two party preferred share", x = "") +
+  geom_line(data = two_pp_by_booth_nondom %>% filter(booth == "Westgarth"), colour = "black") +
+  geom_point(data = two_pp_by_booth_nondom %>% filter(booth == "Westgarth"), colour = "black") +
+  geom_line(data = two_pp_all_booth %>% filter(non_dom_party), colour = "blue")
+
+
+ggplotly(two_pp_by_booth_ggplot)
 ```
 
