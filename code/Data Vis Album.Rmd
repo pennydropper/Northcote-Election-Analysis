@@ -29,6 +29,7 @@ library(rgdal)    # Creates polygon for Northcote District map
 - Map of polling booths, bubble colour showing 2pp
 - Timeline of total votes.
   - Also by polling booth
+  - By party
 
 
 # Bar chart of voters by booth by election
@@ -217,6 +218,44 @@ votes_by_elect_booth_ggp <-
   
 ggplotly(votes_by_elect_booth_ggp, tooltip = "text")
 ```
+
+## Timeline of Party votes
+```{r party_votes_by_elec}
+party_votes_by_elec <-
+  first_pref %>% 
+  inner_join(elec_dates %>% select(year = elec_ID, date), by = "year") %>% 
+  group_by(date, cand_party) %>% 
+  summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(cand_party = cand_party %>% str_replace_all(., "\\'", "") %>% str_trim()) %>% 
+  left_join(party_std, by = "cand_party") %>% 
+  glimpse
+```
+```{r party_votes_by_elec_ggp}
+party_votes_by_elec_ggp <-
+  party_votes_by_elec %>% 
+  group_by(date) %>% 
+  mutate(votes_sh = votes / sum(votes, na.rm = TRUE),
+         party_std = coalesce(party_std, "Informal") %>% fct_relevel("Informal", after = Inf),
+         hov_text = str_c(party_std, "<br>Votes: ", scales::comma(votes), " (", scales::percent(votes_sh), ")")) %>% 
+  ungroup %>% 
+  # mutate(party_std = coalesce(party_std, "Informal") %>% fct_relevel("Informal", after = Inf)) %>% 
+  # glimpse
+
+  ggplot(aes(x = date, y = votes)) +
+  geom_point(aes(text = hov_text, colour = party_std, fill = party_std), size = 0.5) +
+  geom_line(aes(group = party_std, colour = party_std), size = 0.25) +
+    scale_fill_manual("Party", values = party_colours()) +
+  scale_colour_manual("Party", values = party_colours()) +
+  scale_y_log10(label = scales::comma) +
+  labs(title = "Total votes by party", x = "") +
+  expand_limits(y = 0) +
+  geom_line(data = votes_by_booth_all %>% filter(booth == "All"), colour = "grey", size = 0.25, aes(group = booth, text = "Total"))
+
+ggplotly(party_votes_by_elec_ggp, tooltip = "text")
+  
+```
+
 
 # How preferences were allocated.
 ## By party, excluding INDEP
