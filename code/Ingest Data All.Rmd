@@ -200,7 +200,7 @@ for (i in seq_along(two_pp_urls)) {
     # Table showing how preferences were allocated
     two_pp_raw %>% 
     filter(str_detect(measure, "^Transfer of")) %>% 
-    mutate(from_cand = str_replace(measure, "^.*ballot papers of ", "") %>% 
+    mutate(from_cand = str_replace(measure, "^.*ballot.papers of ", "") %>% 
              str_replace(., " \\(.*", "")) %>% 
              # str_replace_all(., ", ", "_")) %>% 
     group_by(from_cand) %>% 
