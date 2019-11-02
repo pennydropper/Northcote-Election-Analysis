@@ -253,3 +253,31 @@ ggplotly(pref_w_party_ggp, tooltip = "text")
 
 
 ## By candidate (shows party and years of being candidate after name)
+
+```{r}
+cands_std %>% 
+  filter(year >= "2010") %>% 
+  group_by(candidate) %>% 
+  summarise(year_num = n(),
+            years = str_c(year, collapse = ","),
+            parties = str_c(unique(party_std), collapse = ",")) %>% 
+  ungroup %>% 
+  arrange(-year_num)
+```
+
+```{r pref_w_cand_ggp}
+pref_w_cand_ggp <- 
+  pref_w_party %>% 
+  filter(from_cand == "EDWARDS, Bryony") %>% 
+  mutate(hovtext = str_c(party_std.to, " (", to_cand, ")<br>", votes, " votes. (", scales::percent(votes / votes_sum), ")")) %>% 
+  # glimpse()
+  
+  ggplot(aes(x = year, y = votes)) +
+  geom_bar(aes(fill = party_std.to, text = hovtext), stat = "identity", position = "dodge") +
+  scale_fill_manual("Party", values = party_colours()) +
+  
+  labs(title = "Distribution of Liberal votes by election", x = "", y = "votes")  
+
+ggplotly(pref_w_cand_ggp, tooltip = "text")
+```
+
