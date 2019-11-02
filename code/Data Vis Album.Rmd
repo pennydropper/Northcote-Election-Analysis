@@ -180,16 +180,18 @@ votes_by_elect_ggp <-
   mutate(booth_ggp = fct_lump(booth, 8, w = votes) %>% fct_relevel("All")) %>% 
   group_by(date, booth_ggp, year) %>% 
   summarise(votes = sum(votes, na.rm = TRUE)) %>% 
-  ungroup() %>% 
-  mutate(hov_text = str_c(booth_ggp, ": ", scales::comma(votes))) %>% 
-  
+  group_by(date) %>% 
+  mutate(votes_sh = votes / sum(if_else(booth_ggp == "All", votes, 0), na.rm = TRUE)) %>% 
+  ungroup %>% 
+  mutate(hov_text = str_c(booth_ggp, ": ", scales::comma(votes), "<br>Share of All: ", scales::percent(votes_sh))) %>% 
+
   ggplot(aes(x = date, y = votes)) +
-  scale_y_continuous("Votes", labels = scales::comma) +
-  # scale_color_manual("Party", values = party_colours()) +
+  # scale_y_continuous("Votes", labels = scales::comma) +
+  scale_y_log10("Votes (log scale)", labels = scales::comma) +
   scale_shape_discrete("Polling Booth") +
   expand_limits(y = 0) +
   geom_point(aes(text = hov_text, shape = booth_ggp)) +
-  geom_line(colour = "blue", size = 0.25, aes(group = booth_ggp)) +
+  geom_line(colour = "grey", size = 0.25, aes(group = booth_ggp)) +
   geom_line(data = votes_by_booth_all %>% filter(booth == "All"), colour = "red", size = 0.5) +
   labs(title = "Total votes", x = "")
   
@@ -215,8 +217,39 @@ votes_by_elect_booth_ggp <-
   
 ggplotly(votes_by_elect_booth_ggp, tooltip = "text")
 ```
-```{r}
-votes_by_booth_elec %>% 
-  filter(is.na(party_std))
+
+# How preferences were allocated.
+## By party, excluding INDEP
+
+```{r pref_w_party}
+pref_w_party <- 
+  pref %>% 
+  left_join(cands_std %>% select(-cand_party) %>% rename_all(~str_c(., ".from")), 
+            by = c("from_cand" = "candidate.from", "year" = "year.from")) %>% 
+  left_join(cands_std %>% select(-cand_party) %>% rename_all(~str_c(., ".to")), 
+            by = c("to_cand" = "candidate.to", "year" = "year.to")) %>% 
+  glimpse()
+  
 ```
 
+```{r pref_w_party_ggp}
+pref_w_party_ggp <-
+  pref_w_party %>% 
+  complete(year, party_std.from) %>% 
+  filter(party_std.from == "Fiona Pattens Reason Party (Sex Party)") %>% 
+  mutate(hovtext = str_c(party_std.to, " (", to_cand, ")<br>", votes, " votes. (", scales::percent(votes / votes_sum), ")")) %>% 
+  # glimpse()
+
+  ggplot(aes(x = year, y = votes)) +
+  geom_bar(aes(fill = party_std.to, text = hovtext), stat = "identity", position = "dodge") +
+  scale_fill_manual("Party", values = party_colours()) +
+  
+  labs(title = "Distribution of Liberal votes by election", x = "", y = "votes")
+
+ggplotly(pref_w_party_ggp, tooltip = "text")
+
+```
+
+
+
+## By candidate (shows party and years of being candidate after name)
