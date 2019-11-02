@@ -346,14 +346,16 @@ cands %>%
 ```{r party_std}
 party_std <-
   read_excel(str_c(data_dir, "cand_party_raw.xlsx", sep = "/")) %>% 
-  glimpse()
+  mutate_at(c("cand_party", "party_std"), ~str_replace_all(., "\\'", "") %>% str_trim()) %>% 
+  print()
 ```
 
 ```{r cands_std}
 cands_std <- 
   cands %>% 
+  mutate_at(c("cand_party"), ~str_replace_all(., "\\'", "") %>% str_trim()) %>% 
   left_join(party_std, by = "cand_party") %>% 
-  glimpse()
+  print()
 ```
 
 # Save data
