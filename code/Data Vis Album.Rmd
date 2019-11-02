@@ -239,8 +239,6 @@ party_votes_by_elec_ggp <-
          party_std = coalesce(party_std, "Informal") %>% fct_relevel("Informal", after = Inf),
          hov_text = str_c(party_std, "<br>Votes: ", scales::comma(votes), " (", scales::percent(votes_sh), ")")) %>% 
   ungroup %>% 
-  # mutate(party_std = coalesce(party_std, "Informal") %>% fct_relevel("Informal", after = Inf)) %>% 
-  # glimpse
 
   ggplot(aes(x = date, y = votes)) +
   geom_point(aes(text = hov_text, colour = party_std, fill = party_std), size = 0.5) +
@@ -248,7 +246,7 @@ party_votes_by_elec_ggp <-
     scale_fill_manual("Party", values = party_colours()) +
   scale_colour_manual("Party", values = party_colours()) +
   scale_y_log10(label = scales::comma) +
-  labs(title = "Total votes by party", x = "") +
+  labs(title = "Total first preference votes by party", x = "") +
   expand_limits(y = 0) +
   geom_line(data = votes_by_booth_all %>% filter(booth == "All"), colour = "grey", size = 0.25, aes(group = booth, text = "Total"))
 
@@ -318,5 +316,56 @@ pref_w_cand_ggp <-
   labs(title = "Distribution of Liberal votes by election", x = "", y = "votes")  
 
 ggplotly(pref_w_cand_ggp, tooltip = "text")
+```
+
+# Map of Polling Booths
+
+```{r votes_by_phys_booth}
+votes_by_phys_booth <-
+  votes_by_booth_all %>% 
+  filter(booth != "All") %>% 
+  inner_join(booth_addr_lst, by = "booth") %>% 
+  mutate(hov_text = str_c(booth, "<br>", booth_addr, "<br>Votes: ", votes, "<br>2pp to ", party_std, ": ", scales::percent(votes_sh) )) %>% 
+  group_by(year) %>% 
+  mutate(votes_sh_scale = scales::rescale(votes_sh)) %>% 
+  ungroup %>% 
+  # print()
+  glimpse
+
+```
+
+
+```{r}
+# library(RColorBrewer)
+pal <- colorNumeric(
+  palette = "RdYlGn",
+  domain = votes_by_phys_booth$votes_sh_scale)
+
+# display.brewer.all()
+
+leaflet(options = leafletOptions(minZoom = 12,
+                                 maxZoom = 16)) %>%
+  addProviderTiles("Esri.WorldTopoMap") %>%
+  
+  addPolygons(data = nrthct_plgon,
+              color = "#c994c7", weight = 1, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.2,
+              # fillColor = ~colorQuantile("YlOrRd", ALAND)(ALAND),
+              highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                  bringToFront = FALSE)) %>% 
+  
+    addCircleMarkers(data = votes_by_phys_booth %>% filter(year == "2018"),
+                   radius = ~votes / 100,
+                   popup = ~hov_text,
+                   label = ~booth,
+                   lat = ~lat,
+                   lng = ~lon,
+                   labelOptions = labelOptions(permanent = FALSE),
+                   color = "black",
+                   fillColor = ~pal(votes_sh_scale),
+                   fill = TRUE) %>% 
+  addLegend(title = "2pp vs ALP", pal = pal, values = votes_by_phys_booth$votes_sh,
+            labels = palette(),
+            position = "bottomright")
 ```
 
