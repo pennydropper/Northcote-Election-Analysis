@@ -444,3 +444,41 @@ plot_pref_distn_sel_cand <- function(p_candidate = "BISHOP, Robert", p_pref_w_pa
   
   ggplotly(pref_w_cand_ggp, tooltip = "text")
 }
+
+cre_votes_by_phys_booth <- function(p_votes_by_booth_all = votes_by_booth_all, p_booth_addr_lst = booth_addr_lst) {
+  p_votes_by_booth_all %>% 
+    filter(booth != "All") %>% 
+    inner_join(p_booth_addr_lst, by = "booth") %>% 
+    mutate(hov_text = str_c(booth, "<br>", booth_addr, "<br>Votes: ", votes, "<br>2pp to ", party_std, ": ", scales::percent(votes_sh) )) %>% 
+    group_by(year) %>% 
+    mutate(votes_sh_scale = scales::rescale(votes_sh)) %>% # Scale votes for colour coding on chart
+    ungroup
+}
+
+plot_2pp_vote_ts <- function(p_two_pp_all_booth = two_pp_all_booth) {
+  
+  two_pp_total <-
+    p_two_pp_all_booth %>% 
+    group_by(date) %>% 
+    summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(hov_text = str_c("Total: ", votes))
+  
+  two_pp_plot <-
+    two_pp_all_booth %>% 
+    mutate(hov_text = str_c(party_std, "<br>Votes: ", votes, "<br>Share: ", scales::percent(votes_sh))) %>% 
+    
+    ggplot(aes(x = date, y = votes)) +
+    geom_line(na.rm = TRUE, aes(colour = party_std)) +
+    geom_point(na.rm = TRUE, aes(colour = party_std, shape = party_std, text = hov_text)) +
+    scale_y_log10("2 party preferred votes", labels = scales::comma) +
+    scale_color_manual("Party", values = party_colours()) +
+    scale_shape_discrete("Party") +
+    
+    geom_line(data = two_pp_total, colour = "black") +
+    geom_point(data = two_pp_total, colour = "black", aes(text = hov_text)) +
+    
+    labs(title = "Two party preferred votes", x = "")
+  
+  ggplotly(two_pp_plot, tooltip = "text")  
+}  

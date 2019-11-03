@@ -64,6 +64,11 @@ plot_two_pp_all_booth()
 ```
 
 ```{r}
+plot_2pp_vote_ts(two_pp_all_booth)
+```
+
+
+```{r}
 two_pp %>% 
   group_by(year, booth) %>% 
   summarise(votes = sum(votes, na.rm = TRUE)) %>% 
