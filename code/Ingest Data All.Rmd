@@ -330,6 +330,7 @@ booth_addr_lst <- read_csv(str_c(data_dir, booth_addr_flnm, sep = "/"),
                              lon = col_double(),
                              lat = col_double()
                            )) %>% 
+  arrange(booth) %>% 
   print()
 
 ```
