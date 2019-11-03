@@ -4,17 +4,41 @@
 dom_party_name <- "Australian Labor Party"
 
 # Transformed dataframes
-transf_df <- c(two_pp_detail,
-               two_pp_all_booth,
-               two_pp_by_booth_nondom,
-               votes_by_booth_elec,
-               votes_by_booth_all,
-               party_votes_by_elec,
-               pref_w_party,
-               cand_list,
-               votes_by_phys_booth
+transf_df <- c("two_pp_detail",
+               "two_pp_all_booth",
+               "two_pp_by_booth_nondom",
+               "votes_by_booth_elec",
+               "votes_by_booth_all",
+               "party_votes_by_elec",
+               "pref_w_party",
+               "cand_list",
+               "votes_by_phys_booth"
 )
 
+objects_core <- c("booth_addr_lst",
+                  "cands_std",
+                  "distn",
+                  "elec_dates",
+                  "first_pref",
+                  "nrthct_plgon",
+                  "pref",
+                  "two_pp")
+
+write_dfs <- function(p_objs) {
+  # Write objects specified in list to rds file
+  p_objs %>% 
+    walk(., ~ write_rds(get(.), str_c(data_dir, str_c(., ".rds", sep = ""), sep = "/"), "none"))
+}
+
+# getwd()
+
+retrieve_dfs <- function(p_objs){
+  # Retrieve objects specified in list from rds file
+  p_objs %>% 
+    walk(., ~ assign(., read_rds(str_c(data_dir, str_c(., ".rds", sep = ""), sep = "/"))))
+}
+
+write_dfs(transf_df)
 
 # Plot distribution share -------------------------------------------------
 
