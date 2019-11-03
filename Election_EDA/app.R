@@ -9,6 +9,7 @@ library(tidyverse)
 library(readxl)
 library(lubridate)
 library(plotly)
+library(gridExtra)
 
 source(".././code/functions.R")
 
@@ -79,7 +80,6 @@ ui <- fluidPage(
       tabPanel( "2 Party Pref by Booth",
                 # Two party preferred share by booth
                 
-                # Sidebar with a slider input for number of bins 
                 sidebarLayout(
                    sidebarPanel(
                       selectInput("two_pp_by_booth_nondom_plot_booth",
@@ -94,39 +94,20 @@ ui <- fluidPage(
                 )
       ),
       
-      tabPanel( "2 Party Pref Share"
+      tabPanel( "2 Party Pref Share",
                 # Two party preferred share
-                
-                # Sidebar with a slider input for number of bins 
-                # sidebarLayout(
-                #    sidebarPanel(
-                #       # selectInput("two_pp_by_booth_nondom_plot_booth",
-                #       #             "Select booth to highlight:",
-                #       #             choices = two_pp$booth %>% unique())
-                #    ),
-                #    
-                # splitLayout(
-                #       plotlyOutput("two_pp_all_booth_plot", height = 700),
-                #       plotlyOutput("two_pp_vote_ts_plot", height = 700)
-                #    )
-                
+
+                fluidRow(
+                   plotlyOutput("two_pp_all_booth_plot")
+                )
+               
       ),
       
       tabPanel( "2 Party Pref Votes",
-                # Two party preferred share
+                # Two party preferred votes
                 
-                # Sidebar with a slider input for number of bins 
-                sidebarLayout(
-                   sidebarPanel(
-                      # selectInput("two_pp_by_booth_nondom_plot_booth",
-                      #             "Select booth to highlight:",
-                      #             choices = two_pp$booth %>% unique())
-                   ),
-                   
-                   # Show a plot of the generated distribution
-                   mainPanel(
-                      plotlyOutput("two_pp_vote_ts_plot", height = 700)
-                   )
+                fluidRow(
+                   plotlyOutput("two_pp_vote_ts_plot", height = 700)
                 )
       )
       
@@ -160,11 +141,13 @@ server <- function(input, output) {
    
    output$two_pp_all_booth_plot <- renderPlotly({
       plot_two_pp_all_booth()
+      # plot_2pp_vote_ts(two_pp_all_booth)
    })
 
    output$two_pp_vote_ts_plot <- renderPlotly({
       plot_2pp_vote_ts(two_pp_all_booth)
    })
+   
    
    }
 
