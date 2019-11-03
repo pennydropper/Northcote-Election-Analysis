@@ -44,6 +44,13 @@ ggplotly(bc_booths)
 
 ```
 
+```{r}
+
+plot_booth_votes_bar("2018", votes_by_booth_all)
+
+```
+
+
 # Two-party-preferred timeline
 
 ```{r two_pp_timeline}

@@ -482,3 +482,41 @@ plot_2pp_vote_ts <- function(p_two_pp_all_booth = two_pp_all_booth) {
   
   ggplotly(two_pp_plot, tooltip = "text")  
 }  
+
+plot_booth_votes_bar <- function(p_year = "2018", p_votes_by_booth_all = votes_by_booth_all){
+  
+  votes_for_year <-
+    p_votes_by_booth_all %>% 
+    filter(year == p_year) %>% 
+    filter(booth != "All") %>% 
+    group_by(year) %>% 
+    mutate(elect_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(hov_text = str_c(booth, "<br>Votes: ", votes, "<br>Share of electorate: ", scales::percent(elect_sh),
+                            "<br>Share to ", party_std, ": ", scales::percent(votes_sh)))
+  
+  party2 <-
+    votes_for_year %>% 
+    pull(party_std) %>% 
+    head(1)
+  
+  party2_sh_rng <-
+    votes_for_year$votes_sh %>% 
+    keep(~ . > 0) %>% 
+    range()
+  
+  votes_by_booth_all_ggp <-
+    votes_for_year %>% 
+    mutate(booth = booth %>% fct_reorder(votes)) %>% 
+    # glimpse()
+    
+    ggplot(aes(x = booth, y = votes)) +
+    geom_bar(aes(fill = votes_sh, text = hov_text), stat = "identity") +
+    scale_fill_gradientn("2pp share away from ALP", 
+                         colours = c(party_colours()["Australian Labor Party"], "grey", party_colours()[party2]),
+                         limits = c(floor(party2_sh_rng[1] * 10) / 10, ceiling(party2_sh_rng[2] * 10) / 10),
+                         labels = scales::percent) +
+    coord_flip()
+  
+  ggplotly(votes_by_booth_all_ggp, tooltip = "text")
+}
