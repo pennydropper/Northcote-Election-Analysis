@@ -12,7 +12,9 @@ transf_df <- c("two_pp_detail",
                "party_votes_by_elec",
                "pref_w_party",
                "cand_list",
-               "votes_by_phys_booth"
+               "votes_by_phys_booth",
+               "two_pp_sum",
+               "distn"
 )
 
 objects_core <- c("booth_addr_lst",
@@ -38,7 +40,7 @@ retrieve_dfs <- function(p_objs){
     walk(., ~ assign(., read_rds(str_c(data_dir, str_c(., ".rds", sep = ""), sep = "/"))))
 }
 
-write_dfs(transf_df)
+# write_dfs(transf_df)
 
 # Plot distribution share -------------------------------------------------
 
@@ -354,7 +356,8 @@ plot_votes_by_booth_all <- function(p_votes_by_booth_all = votes_by_booth_all, p
     mutate(hov_text = str_c(booth, ": ", scales::comma(votes), "<br>Share of total: ", scales::percent(votes_sh))) %>% 
     
     ggplot(aes(x = date, y = votes)) +
-    scale_y_log10("Votes (log scale)", labels = scales::comma) +
+    # scale_y_log10("Votes (log scale)", labels = scales::comma) +
+    scale_y_continuous("Votes", labels = scales::comma) +
     expand_limits(y = 0) +
     geom_point(aes(text = hov_text), size = 0.25) +
     geom_line(colour = "grey", size = 0.25, aes(group = booth)) +
@@ -385,8 +388,8 @@ plot_party_votes_by_elec <- function(p_party_votes_by_elec = party_votes_by_elec
     complete(date, party_std) %>% 
     
     ggplot(aes(x = date, y = votes)) +
-    geom_point(aes(text = hov_text, colour = party_std, fill = party_std), size = 0.5) +
-    geom_line(aes(group = party_std, colour = party_std), size = 0.25, na.rm = TRUE) +
+    geom_point(aes(text = hov_text, colour = party_std, fill = party_std), size = 1) +
+    geom_line(aes(group = party_std, colour = party_std), size = 0.25, na.rm = TRUE, linetype = "solid") +
     scale_fill_manual("Party", values = party_colours()) +
     scale_colour_manual("Party", values = party_colours()) +
     scale_y_log10(label = scales::comma) +
@@ -544,3 +547,43 @@ plot_booth_votes_bar <- function(p_year = "2018", p_votes_by_booth_all = votes_b
   
   ggplotly(votes_by_booth_all_ggp, tooltip = "text")
 }
+
+cre_two_pp_sum <- function(p_two_pp = two_pp) {
+  p_two_pp %>% 
+    filter(!str_detect(booth, "Total")) %>% 
+    group_by(year, candidate) %>% 
+    summarise(votes = sum(votes, na.rm = TRUE)) %>% 
+    ungroup()
+}
+
+plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
+  # Plots bar chart of 1st pref votes and final preference votes
+  
+  dist_trans <-
+    p_distn %>% 
+    filter(year == p_year) %>% 
+    group_by(year, candidate) %>% 
+    summarise(votes_min = min(votes, na.rm = TRUE),
+              votes_max = max(votes, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    left_join(cands_std %>% select(-cand_party, -party_colour), by = c("candidate", "year")) %>% 
+    left_join(two_pp_sum, by = c("year", "candidate")) %>% 
+    mutate(votes_max = coalesce(votes, votes_max),
+           candidate = candidate %>% fct_reorder(votes_max)) %>% 
+    select(-votes) %>% 
+    pivot_longer(cols = c(votes_min, votes_max), names_to = "vote_rnd", values_to = "votes") %>% 
+    mutate(hov_text = str_c(readable_nm(candidate), "<br>", party_std, "<br>Votes: ", votes),
+           vote_rnd = fct_rev(vote_rnd))
+  
+  votes_by_cand_ggp <- 
+    dist_trans %>%   
+    ggplot(aes(x = candidate, y = votes)) +
+    geom_bar(aes(fill = vote_rnd, text = hov_text), stat = "identity", position = "dodge") +
+    scale_fill_discrete(name = "Votes", label = c("votes_min" = "1st Pref", "votes_max" = "After distn")) +
+    labs(title = str_c("First preference and final votes in ", p_year)) +
+    coord_flip()
+  
+  ggplotly(votes_by_cand_ggp, tooltip = "text")
+  
+}
+

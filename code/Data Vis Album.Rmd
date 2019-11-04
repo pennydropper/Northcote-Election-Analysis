@@ -111,7 +111,7 @@ plot_votes_by_booth(votes_by_booth_all, p_lump_n = 8)
 ```
 ```{r votes_by_elect_booth_ggp}
 
-plot_votes_by_booth_all(votes_by_booth_all) 
+plot_votes_by_booth_all(votes_by_booth_all, "Westgarth") 
 
 ```
 
@@ -125,6 +125,10 @@ party_votes_by_elec <-
 
 plot_party_votes_by_elec(party_votes_by_elec)
 
+```
+
+```{r plot_votes_by_cand}
+plot_votes_by_cand("2018", distn)
 ```
 
 
