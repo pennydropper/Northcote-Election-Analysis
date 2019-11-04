@@ -96,6 +96,7 @@ ui <- fluidPage(
                 # Two party preferred share
 
                 fluidRow(
+                   # h2(textOutput("plot_booth_votes_bar_heading")),  # Something wacky about these plots
                    plotlyOutput("two_pp_all_booth_plot")
                 )
                
@@ -133,6 +134,54 @@ ui <- fluidPage(
                 
                 fluidRow(
                    plotlyOutput("party_votes_by_elec_plot", height = 700)
+                )
+      ),
+      
+      tabPanel( "First and Final Votes",
+                # Total first and final votes for given year
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      selectInput("first_final_votes_sel_year",
+                                  "Select year to display for chart:",
+                                  choices = elec_dates$elec_ID %>% keep(~. >= "2010") %>% sort())
+                   ),
+                   
+                   mainPanel(
+                      plotlyOutput("votes_by_cand_plot", height = 700)
+                   )
+                )
+      ),
+      
+      tabPanel( "Votes distn by party",
+                # Votes distribution by party
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      selectInput("votes_distn_party_sel",
+                                  "Select party to display for chart:",
+                                  choices = pref_w_party$party_std.from %>% unique() %>% sort())
+                   ),
+                   
+                   mainPanel(
+                      plotlyOutput("distn_party_prefs_plot", height = 700)
+                   )
+                )
+      ),
+      
+      tabPanel( "Votes distn by candidate",
+                # Votes distribution by candidate
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      selectInput("votes_distn_cand_sel",
+                                  "Select candidate to display for chart:",
+                                  choices = pref_w_party$from_cand %>% unique() %>% sort())
+                   ),
+                   
+                   mainPanel(
+                      plotlyOutput("pref_distn_sel_cand_plot", height = 700)
+                   )
                 )
       )
       
@@ -179,6 +228,18 @@ server <- function(input, output) {
    
    output$party_votes_by_elec_plot <- renderPlotly({
       plot_party_votes_by_elec(party_votes_by_elec)
+   })
+   
+   output$votes_by_cand_plot <- renderPlotly({
+      plot_votes_by_cand(input$first_final_votes_sel_year, distn)
+   })
+   
+   output$distn_party_prefs_plot <- renderPlotly({
+      plot_distn_party_prefs(input$votes_distn_party_sel, pref_w_party, elec_dates)  
+   })
+   
+   output$pref_distn_sel_cand_plot <- renderPlotly({
+      plot_pref_distn_sel_cand(input$votes_distn_cand_sel, pref_w_party)  
    })
    
    }
