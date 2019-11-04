@@ -40,7 +40,6 @@ ui <- fluidPage(
       tabPanel( "Booth map",
          # Northcote map with year selector
          
-         # Sidebar with a slider input for number of bins 
          sidebarLayout(
             sidebarPanel(
                selectInput("map_year",
@@ -60,7 +59,6 @@ ui <- fluidPage(
       tabPanel( "Polling station sizes",
                 # Bar chart of polling stations for a single year
                 
-                # Sidebar with a slider input for number of bins 
                 sidebarLayout(
                    sidebarPanel(
                       selectInput("plot_booth_votes_bar_year",
@@ -84,7 +82,7 @@ ui <- fluidPage(
                    sidebarPanel(
                       selectInput("two_pp_by_booth_nondom_plot_booth",
                                   "Select booth to highlight:",
-                                  choices = two_pp$booth %>% unique())
+                                  choices = two_pp$booth %>% unique() %>% sort())
                    ),
                    
                    # Show a plot of the generated distribution
@@ -108,6 +106,33 @@ ui <- fluidPage(
                 
                 fluidRow(
                    plotlyOutput("two_pp_vote_ts_plot", height = 700)
+                )
+      ),
+      
+      tabPanel( "Total votes by booth",
+                # Total votes by booth
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      selectInput("votes_by_booth_sel_booth",
+                                  "Select booth to highlight on chart:",
+                                  choices = two_pp$booth %>% unique() %>% sort())
+                   ),
+                   
+                   # Show a plot of the generated distribution
+                   mainPanel(
+                      # h2(textOutput("plot_booth_votes_bar_heading")),
+                      # p(),
+                      plotlyOutput("votes_by_booth_all_plot", height = 700)
+                   )
+                )
+      ),
+      
+      tabPanel( "First Pref Votes",
+                # Total first preference votes by party
+                
+                fluidRow(
+                   plotlyOutput("party_votes_by_elec_plot", height = 700)
                 )
       )
       
@@ -148,6 +173,13 @@ server <- function(input, output) {
       plot_2pp_vote_ts(two_pp_all_booth)
    })
    
+   output$votes_by_booth_all_plot <- renderPlotly({
+      plot_votes_by_booth_all(votes_by_booth_all, input$votes_by_booth_sel_booth) 
+   })
+   
+   output$party_votes_by_elec_plot <- renderPlotly({
+      plot_party_votes_by_elec(party_votes_by_elec)
+   })
    
    }
 
