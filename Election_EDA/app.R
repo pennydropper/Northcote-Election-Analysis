@@ -13,11 +13,11 @@ library(gridExtra)
 
 source(".././code/functions.R")
 
-# Add line to source key functions
 
 
 # Add line to retrieve key data
 
+retrieve_dfs(transf_df)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -144,7 +144,7 @@ ui <- fluidPage(
                    sidebarPanel(
                       selectInput("first_final_votes_sel_year",
                                   "Select year to display for chart:",
-                                  choices = elec_dates$elec_ID %>% keep(~. >= "2010") %>% sort())
+                                  choices = elec_dates$elec_ID %>% keep(~. >= "2010") %>% sort(decreasing = TRUE))
                    ),
                    
                    mainPanel(
@@ -164,7 +164,7 @@ ui <- fluidPage(
                    ),
                    
                    mainPanel(
-                      plotlyOutput("distn_party_prefs_plot", height = 700)
+                      plotlyOutput("distn_party_prefs_plot", height = "auto", width = "auto")
                    )
                 )
       ),
@@ -198,7 +198,7 @@ server <- function(input, output) {
    })
    
    output$poll_map_heading <- renderText({
-      str_c("Plot of Polling Stations in ", input$map_year)
+      str_c("Where people voted in ", input$map_year)
    })
    
    output$plot_booth_votes_bar_plot <- renderPlotly({
