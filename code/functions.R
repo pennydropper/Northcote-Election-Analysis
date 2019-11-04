@@ -14,7 +14,8 @@ transf_df <- c("two_pp_detail",
                "cand_list",
                "votes_by_phys_booth",
                "two_pp_sum",
-               "distn"
+               "distn",
+               "elec_dates"
 )
 
 objects_core <- c("booth_addr_lst",
@@ -402,6 +403,7 @@ plot_party_votes_by_elec <- function(p_party_votes_by_elec = party_votes_by_elec
 
 cre_pref_w_party <- function(p_pref = pref, p_cands_std = cands_std) {
   p_pref %>% 
+    bind_rows(cre_distn_gap()) %>% 
     left_join(p_cands_std %>% select(-cand_party) %>% rename_all(~str_c(., ".from")), 
               by = c("from_cand" = "candidate.from", "year" = "year.from")) %>% 
     left_join(p_cands_std %>% select(-cand_party) %>% rename_all(~str_c(., ".to")), 
@@ -574,10 +576,18 @@ plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
     pivot_longer(cols = c(votes_min, votes_max), names_to = "vote_rnd", values_to = "votes") %>% 
     mutate(hov_text = str_c(readable_nm(candidate), "<br>", party_std, "<br>Votes: ", votes),
            vote_rnd = fct_rev(vote_rnd))
+
+    votes_win <-
+    dist_trans %>% 
+    summarise(votes_win = sum(if_else(vote_rnd == "votes_min", votes, 0L)) / 2) %>% 
+    pull(votes_win) %>% 
+    .[1]
+  
   
   votes_by_cand_ggp <- 
     dist_trans %>%   
     ggplot(aes(x = candidate, y = votes)) +
+    geom_hline(yintercept = votes_win, linetype = "dashed", colour = "grey") +
     geom_bar(aes(fill = vote_rnd, text = hov_text), stat = "identity", position = "dodge") +
     scale_fill_discrete(name = "Votes", label = c("votes_min" = "1st Pref", "votes_max" = "After distn")) +
     labs(title = str_c("First preference and final votes in ", p_year)) +
@@ -587,3 +597,27 @@ plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
   
 }
 
+cre_distn_gap <- function(p_two_pp_sum = two_pp_sum, p_distn = distn, p_pref = pref) {
+  # Data frame showing the gap between the final votes and votes after distribution
+  
+  distn_gap_last2 <-
+    # shows the gap between the distribution data and the 2 candidate preferential data
+    two_pp_sum %>% 
+    inner_join(distn %>% group_by(year, candidate) %>% summarise(votes = max(votes)), by = c("year", "candidate"), suffix = c("", ".distn")) %>% 
+    mutate(votes_last_rnd = votes - votes.distn ) 
+  
+  p_distn %>% 
+    anti_join(p_pref, by = c("year", "candidate" = "from_cand")) %>% 
+    group_by(year, candidate) %>%
+    summarise(votes = max(votes)) %>%
+    ungroup() %>% 
+    inner_join(distn_gap_last2, by = "year", suffix = c(".from", ".to")) %>%
+    anti_join(distn_gap_last2, by = c("candidate.from" = "candidate")) %>%
+    select(year, from_cand = candidate.from, to_cand = candidate.to, votes = votes_last_rnd) %>% 
+    group_by(year, from_cand) %>% 
+    mutate(pref_rank = NA_integer_,
+           votes_sh = votes / sum(votes),
+           votes_sum = sum(votes)) %>% 
+    ungroup()
+
+}
