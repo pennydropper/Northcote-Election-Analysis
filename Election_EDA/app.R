@@ -10,14 +10,16 @@ library(readxl)
 library(lubridate)
 library(plotly)
 library(gridExtra)
+library(leaflet)
 
-source(".././code/functions.R")
+source("./functions.R")
 
-
+# data_dir <- ".././data"
+# getwd()
 
 # Add line to retrieve key data
 
-retrieve_dfs(transf_df)
+retrieve_dfs(transf_df, "./data")
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
