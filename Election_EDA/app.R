@@ -28,7 +28,8 @@ ui <- fluidPage(
    titlePanel("Northcote Election Results - Explore the data!"),
    
    # Set of tabs with reporting options
-   tabsetPanel(
+   navlistPanel(
+      widths = c(2, 10),
       # Northcote map with year selector
       # Bar chart of polling stations for a single year
       # Two party preferred share by booth
@@ -100,6 +101,7 @@ ui <- fluidPage(
                 fluidRow(
                    # h2(textOutput("plot_booth_votes_bar_heading")),  # Something wacky about these plots
                    plotlyOutput("two_pp_all_booth_plot")
+                   # h2("Hello world")
                 )
                
       ),
