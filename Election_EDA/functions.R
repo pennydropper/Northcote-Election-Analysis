@@ -160,11 +160,16 @@ party_colours <- function() {
 print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec = "2018") {
   # Print leaflet map of polling booths
   
+  p_votes_by_phys_booth <-
+    p_votes_by_phys_booth %>% 
+    mutate(alp_sh = 1 - votes_sh)
+  
   party2 <-
     p_votes_by_phys_booth %>% 
     filter(year == p_elec) %>% 
     pull(party_std) %>% 
-    head(1)
+    head(1) %>% 
+    str_replace(., "Australian ", "") # Trim Australian Greens to Greens
 
   pal_spect <- "RdYlGn"  # Assume that Greens are the 2nd party
   
@@ -209,9 +214,13 @@ print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec 
                      fillColor = ~pal(votes_sh_scale),
                      fill = TRUE) %>% 
     
-    addLegend(title = str_c(party2, " vs ALP"), pal = pal, values = p_votes_by_phys_booth$votes_sh,
+    addLegend(position = "topright",
+              title = str_c(party2, " 2pp share vs ALP"), 
+              pal = pal, 
+              values = p_votes_by_phys_booth$votes_sh,
               labels = palette(),
-              position = "bottomright")
+              # opacity = .5,
+              labFormat = scales::percent)
   
 }
 
@@ -302,7 +311,7 @@ plot_two_pp_by_booth_nondom <-
       scale_shape_discrete("Party") +
       geom_line(data = two_pp_all_booth %>% filter(non_dom_party), colour = "blue") +
       geom_point(data = two_pp_all_booth %>% filter(non_dom_party), aes(text = hov_text, colour = party_std)) +
-      labs(title = str_c("Two party preferred share by booth: ", p_booth, " highlighted", sep = ""), x = "") +
+      labs(title = str_c("Two party preferred share by polling station: ", p_booth, " highlighted", sep = ""), x = "") +
       scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
     
     
@@ -375,7 +384,7 @@ plot_votes_by_booth_all <- function(p_votes_by_booth_all = votes_by_booth_all, p
     geom_point(aes(text = hov_text), size = 0.25) +
     geom_line(colour = "grey", size = 0.25, aes(group = booth)) +
     geom_line(data = votes_by_booth_all %>% filter(booth == p_booth_sel), colour = "red", size = 0.5) +
-    labs(title = str_c("Total votes by booth: ", p_booth_sel, " highlighted"), x = "") +
+    labs(title = str_c("Total votes by polling station: ", p_booth_sel, " highlighted"), x = "") +
     scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
   
   ggplotly(votes_by_elect_booth_ggp, tooltip = "text")

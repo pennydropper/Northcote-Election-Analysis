@@ -181,6 +181,6 @@ votes_by_phys_booth <-
 
 ```{r}
 
-print_booth_map(votes_by_phys_booth, "2017")
+print_booth_map(votes_by_phys_booth, "1999")
 ```
 

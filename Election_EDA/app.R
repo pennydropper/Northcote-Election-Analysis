@@ -40,7 +40,7 @@ ui <- fluidPage(
       # Votes distribution by party
       # Votes distribution by candidate
       
-      tabPanel( "Booth map",
+      tabPanel( "Polling station map",
          # Northcote map with year selector
          
          sidebarLayout(
@@ -78,13 +78,13 @@ ui <- fluidPage(
                 )
       ),
       
-      tabPanel( "2 Party Pref by Booth",
+      tabPanel( "2 Party Pref by Polling Station",
                 # Two party preferred share by booth
                 
                 sidebarLayout(
                    sidebarPanel(
                       selectInput("two_pp_by_booth_nondom_plot_booth",
-                                  "Select booth to highlight:",
+                                  "Select polling station to highlight:",
                                   choices = two_pp$booth %>% unique() %>% sort())
                    ),
                    
@@ -114,13 +114,13 @@ ui <- fluidPage(
                 )
       ),
       
-      tabPanel( "Total votes by booth",
+      tabPanel( "Total votes by polling station",
                 # Total votes by booth
                 
                 sidebarLayout(
                    sidebarPanel(
                       selectInput("votes_by_booth_sel_booth",
-                                  "Select booth to highlight on chart:",
+                                  "Select polling station to highlight on chart:",
                                   choices = two_pp$booth %>% unique() %>% sort())
                    ),
                    
