@@ -47,7 +47,8 @@ ui <- fluidPage(
             sidebarPanel(
                selectInput("map_year",
                            "Select year to display on map:",
-                           choices = elec_dates$elec_ID)
+                           choices = elec_dates$elec_ID),
+               width = 2
             ),
             
             # Show a plot of the generated distribution
@@ -66,7 +67,8 @@ ui <- fluidPage(
                    sidebarPanel(
                       selectInput("plot_booth_votes_bar_year",
                                   "Select year to display for chart:",
-                                  choices = elec_dates$elec_ID)
+                                  choices = elec_dates$elec_ID),
+                      width = 2
                    ),
                    
                    # Show a plot of the generated distribution
@@ -85,7 +87,8 @@ ui <- fluidPage(
                    sidebarPanel(
                       selectInput("two_pp_by_booth_nondom_plot_booth",
                                   "Select polling station to highlight:",
-                                  choices = two_pp$booth %>% unique() %>% sort())
+                                  choices = two_pp$booth %>% unique() %>% sort()),
+                      width = 2
                    ),
                    
                    # Show a plot of the generated distribution
@@ -121,7 +124,8 @@ ui <- fluidPage(
                    sidebarPanel(
                       selectInput("votes_by_booth_sel_booth",
                                   "Select polling station to highlight on chart:",
-                                  choices = two_pp$booth %>% unique() %>% sort())
+                                  choices = two_pp$booth %>% unique() %>% sort()),
+                      width = 2
                    ),
                    
                    # Show a plot of the generated distribution
@@ -148,7 +152,8 @@ ui <- fluidPage(
                    sidebarPanel(
                       selectInput("first_final_votes_sel_year",
                                   "Select year to display for chart:",
-                                  choices = elec_dates$elec_ID %>% keep(~. >= "2010") %>% sort(decreasing = TRUE))
+                                  choices = elec_dates$elec_ID %>% keep(~. >= "2010") %>% sort(decreasing = TRUE)),
+                      width = 2
                    ),
                    
                    mainPanel(
@@ -164,7 +169,8 @@ ui <- fluidPage(
                    sidebarPanel(
                       selectInput("votes_distn_party_sel",
                                   "Select party to display for chart:",
-                                  choices = pref_w_party$party_std.from %>% unique() %>% sort())
+                                  choices = pref_w_party$party_std.from %>% unique() %>% sort()),
+                      width = 2
                    ),
                    
                    mainPanel(
@@ -180,7 +186,8 @@ ui <- fluidPage(
                    sidebarPanel(
                       selectInput("votes_distn_cand_sel",
                                   "Select candidate to display for chart:",
-                                  choices = pref_w_party$from_cand %>% unique() %>% sort())
+                                  choices = pref_w_party$from_cand %>% unique() %>% sort()),
+                      width = 2
                    ),
                    
                    mainPanel(
@@ -202,7 +209,7 @@ server <- function(input, output) {
    })
    
    output$poll_map_heading <- renderText({
-      str_c("Where people voted in ", input$map_year)
+      str_c("Where people voted and how neighbourhoods voted in ", input$map_year)
    })
    
    output$plot_booth_votes_bar_plot <- renderPlotly({
@@ -210,7 +217,7 @@ server <- function(input, output) {
    })
    
    output$plot_booth_votes_bar_heading <- renderText({
-      str_c("Relative sizes of polling stations in ", input$plot_booth_votes_bar_year)
+      str_c("Number of voters at each polling station in ", input$plot_booth_votes_bar_year)
    })
    
    output$two_pp_by_booth_nondom_plot <- renderPlotly({
