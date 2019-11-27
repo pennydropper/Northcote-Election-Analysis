@@ -21,9 +21,10 @@ source("./functions.R")
 
 retrieve_dfs(transf_df, "./data")
 
+
 # Define UI for application that draws a histogram
 ui <- fluidPage(
-   
+   theme = "bootstrap.css",
    # Application title
    titlePanel("Northcote Election Results - Explore the data!"),
    
