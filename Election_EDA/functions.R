@@ -154,7 +154,7 @@ party_colours <- function() {
     select(party_std, party_colour) %>% 
     distinct() %>% 
     deframe() %>% 
-    append(c("Informal" = "grey"))
+    append(c("Informal" = "grey", "Total" = "black"))
 }
 
 print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec = "2018") {
@@ -215,7 +215,7 @@ print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec 
                      fill = TRUE) %>% 
     
     addLegend(position = "topright",
-              title = str_c(party2, " 2pp share vs ALP"), 
+              title = str_c(party2, " 2pp<br> vs ALP"), 
               pal = pal, 
               values = p_votes_by_phys_booth$votes_sh,
               labels = palette(),
@@ -274,6 +274,37 @@ plot_two_pp_all_booth <- function(p_two_pp_all_booth = two_pp_all_booth) {
   
   ggplotly(two_pp_plot, tooltip = "text")
 }
+
+plot_2pp_vote_ts <- function(p_two_pp_all_booth = two_pp_all_booth) {
+  
+  two_pp_total <-
+    p_two_pp_all_booth %>% 
+    group_by(date, booth) %>% 
+    summarise(votes = sum(votes, na.rm = TRUE),
+              party_std = "Total") %>% 
+    ungroup() %>% 
+    mutate(hov_text = str_c("Total: ", votes))
+  
+  two_pp_plot <-
+    p_two_pp_all_booth %>% 
+    mutate(hov_text = str_c(party_std, "<br>Votes: ", votes, "<br>Share: ", scales::percent(votes_sh))) %>% 
+    
+    ggplot(aes(x = date, y = votes, colour = party_std, shape = party_std)) +
+    geom_line(na.rm = TRUE) +
+    geom_point(na.rm = TRUE, aes(text = hov_text), size = 0.5) +
+    scale_y_log10("2 party preferred votes", labels = scales::comma) +
+    scale_color_manual("Party", values = party_colours()) +
+    scale_shape_discrete("") +
+    
+    geom_line(data = two_pp_total) +
+    geom_point(data = two_pp_total, aes(text = hov_text), size = 0.5) +
+    
+    labs(title = "Two party preferred votes", x = "") +
+    scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
+  
+  ggplotly(two_pp_plot, tooltip = "text")
+  
+}  
 
 cre_two_pp_by_booth_nondom <- function(p_two_pp_detail = two_pp_detail) {
   # tibble with the non-dominant party
@@ -507,34 +538,6 @@ cre_votes_by_phys_booth <- function(p_votes_by_booth_all = votes_by_booth_all, p
     ungroup
 }
 
-plot_2pp_vote_ts <- function(p_two_pp_all_booth = two_pp_all_booth) {
-  
-  two_pp_total <-
-    p_two_pp_all_booth %>% 
-    group_by(date) %>% 
-    summarise(votes = sum(votes, na.rm = TRUE)) %>% 
-    ungroup() %>% 
-    mutate(hov_text = str_c("Total: ", votes))
-  
-  two_pp_plot <-
-    two_pp_all_booth %>% 
-    mutate(hov_text = str_c(party_std, "<br>Votes: ", votes, "<br>Share: ", scales::percent(votes_sh))) %>% 
-    
-    ggplot(aes(x = date, y = votes)) +
-    geom_line(na.rm = TRUE, aes(colour = party_std)) +
-    geom_point(na.rm = TRUE, aes(colour = party_std, shape = party_std, text = hov_text)) +
-    scale_y_log10("2 party preferred votes", labels = scales::comma) +
-    scale_color_manual("Party", values = party_colours()) +
-    scale_shape_discrete("Party") +
-    
-    geom_line(data = two_pp_total, colour = "black") +
-    geom_point(data = two_pp_total, colour = "black", aes(text = hov_text)) +
-    
-    labs(title = "Two party preferred votes", x = "") +
-    scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
-  
-  ggplotly(two_pp_plot, tooltip = "text")  
-}  
 
 plot_booth_votes_bar <- function(p_year = "2018", p_votes_by_booth_all = votes_by_booth_all){
   
