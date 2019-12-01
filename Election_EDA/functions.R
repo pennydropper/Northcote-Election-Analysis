@@ -415,23 +415,37 @@ plot_votes_by_booth <- function(p_votes_by_booth_all = votes_by_booth_all, p_lum
 }
 
 plot_votes_by_booth_all <- function(p_votes_by_booth_all = votes_by_booth_all, p_booth_sel = "Westgarth") {
-  votes_by_elect_booth_ggp <-
+
+  votes_by_booth_prep <-
     p_votes_by_booth_all %>% 
     filter(booth != "All") %>% 
     group_by(date) %>% 
     mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
     ungroup %>% 
-    mutate(hov_text = str_c(booth, ": ", scales::comma(votes), "<br>Share of total: ", scales::percent(votes_sh))) %>% 
+    mutate(hov_text = str_c(booth, ": ", scales::comma(votes), "<br>Share of total: ", scales::percent(votes_sh))) 
     
-    ggplot(aes(x = date, y = votes)) +
+    # filter(booth == "Fairfield")
+  
+  votes_by_elect_booth_ggp <-
+    votes_by_booth_prep %>% 
+    
+    ggplot(aes(x = date, y = votes, text = hov_text, group = booth)) +
     # scale_y_log10("Votes (log scale)", labels = scales::comma) +
     scale_y_continuous("Votes", labels = scales::comma) +
-    expand_limits(y = 0) +
-    geom_point(aes(text = hov_text), size = 0.25) +
-    geom_line(colour = "grey", size = 0.25, aes(group = booth)) +
-    geom_line(data = votes_by_booth_all %>% filter(booth == p_booth_sel), colour = "red", size = 0.5) +
+    # expand_limits(y = 0) +
+    geom_point(size = 0.25) +
+    geom_line(colour = "grey", size = 0.25) +
+    geom_line(data = votes_by_booth_prep %>% filter(booth == p_booth_sel), aes(colour = party_std), size = .75) +
     labs(title = str_c("Total votes by polling station: ", p_booth_sel, " highlighted"), x = "") +
-    scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
+    scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y") +
+    
+    scale_color_manual("Party", values = party_colours()) +
+    theme(legend.position = "none") +
+
+    geom_text(data = votes_by_booth_prep %>% filter(booth == p_booth_sel, date == max(votes_by_booth_prep$date, na.rm = TRUE)), 
+              aes(label = booth), nudge_x = 500, vjust = c("left"), check_overlap = TRUE) +
+    expand_limits(x = max(votes_by_booth_prep$date, na.rm = TRUE) + 1000,
+                  y = 0)
   
   ggplotly(votes_by_elect_booth_ggp, tooltip = "text")
 }
