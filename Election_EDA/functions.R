@@ -294,7 +294,7 @@ plot_2pp_vote_ts <- function(p_two_pp_all_booth = two_pp_all_booth) {
     geom_point(na.rm = TRUE, aes(text = hov_text), size = 0.5) +
     scale_y_log10("2 party preferred votes", labels = scales::comma) +
     scale_color_manual("Party", values = party_colours()) +
-    scale_shape_discrete("") +
+    scale_shape_discrete("Party") +
     
     geom_line(data = two_pp_total) +
     geom_point(data = two_pp_total, aes(text = hov_text), size = 0.5) +
@@ -323,30 +323,45 @@ cre_two_pp_by_booth_nondom <- function(p_two_pp_detail = two_pp_detail) {
 }
 
 plot_two_pp_by_booth_nondom <- 
-  function(p_two_pp_by_booth_nondom = two_pp_by_booth_nondom, p_booth = "Westgarth") {
+  function(p_two_pp_by_booth_nondom = two_pp_by_booth_nondom, p_booth = "Westgarth", p_two_pp_all_booth = two_pp_all_booth) {
     # Plot 2 party preferred share by booth
-    two_pp_by_booth_ggplot <-
+    
+    p_two_pp_by_booth_nondom <-
       p_two_pp_by_booth_nondom %>% 
       semi_join(booth_addr_lst, by = "booth") %>% 
-      # mutate(booth = factor(booth)) %>% 
-      ggplot(aes(x = date, y = votes_sh, shape = party_std, group = booth)) +
-      geom_line(na.rm = TRUE, colour = "grey", aes(group = booth, shape = party_std)) +
-      geom_point(na.rm = TRUE, colour = "grey", size = 0.5, aes(text = hov_text)) +
+      mutate(non_dom_party = TRUE)  
+    
+    # Set up text values
+    two_pp_text <-
+      p_two_pp_by_booth_nondom %>% filter(booth == p_booth, date == max(date, na.rm = TRUE)) 
+      # rbind(data = p_two_pp_all_booth %>% filter(non_dom_party, date == max(p_two_pp_by_booth_nondom$date, na.rm = TRUE)))
+    # Filter out the totals label as it can overlap with the polling station label with plotly :-(
+    
+    two_pp_by_booth_ggplot <-
+      p_two_pp_by_booth_nondom %>% 
+      ggplot(aes(x = date, y = votes_sh, shape = party_std, group = booth, text = hov_text, colour = party_std)) +
+      geom_line(na.rm = TRUE, size = 0.15, colour = "grey") +
+      geom_point(na.rm = TRUE, size = 0.5, colour = "grey") +
       geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey") +
       scale_y_continuous("2 party preferred share", labels = scales::percent) +
-      # scale_shape_manual("Booth", values = 97:111) +
-      # scale_shape_identity() +
-      geom_line(data = two_pp_by_booth_nondom %>% filter(booth == p_booth), colour = "black") +
-      geom_point(data = two_pp_by_booth_nondom %>% filter(booth == p_booth), aes(text = hov_text, colour = party_std)) +
+      geom_line(data = p_two_pp_by_booth_nondom %>% filter(booth == p_booth)) +
+      geom_point(data = p_two_pp_by_booth_nondom %>% filter(booth == p_booth), size = 2) +
       scale_color_manual("Party", values = party_colours()) +
       scale_shape_discrete("Party") +
-      geom_line(data = two_pp_all_booth %>% filter(non_dom_party), colour = "blue") +
-      geom_point(data = two_pp_all_booth %>% filter(non_dom_party), aes(text = hov_text, colour = party_std)) +
+      theme(legend.position = "none") +
+      geom_line(data = p_two_pp_all_booth %>% filter(non_dom_party), colour = "black") +
+      geom_point(data = p_two_pp_all_booth %>% filter(non_dom_party), aes(colour = party_std), size = 2) +
+      
+      geom_text(data = two_pp_text, 
+                aes(label = booth), nudge_x = 700, vjust = c("left"), check_overlap = TRUE) +
+      expand_limits(x = max(p_two_pp_by_booth_nondom$date) + 1000) +
+      
       labs(title = str_c("Two party preferred share by polling station: ", p_booth, " highlighted", sep = ""), x = "") +
       scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
     
     
     ggplotly(two_pp_by_booth_ggplot, tooltip = "hov_text")
+    # two_pp_by_booth_ggplot
   }
 
 cre_votes_by_booth_elec <- function(p_first_pref = first_pref, p_elec_dates = elec_dates, p_two_pp_by_booth_nondom = two_pp_by_booth_nondom) {
@@ -568,7 +583,7 @@ plot_booth_votes_bar <- function(p_year = "2018", p_votes_by_booth_all = votes_b
     
     ggplot(aes(x = booth, y = votes)) +
     geom_bar(aes(fill = votes_sh, text = hov_text), stat = "identity") +
-    scale_fill_gradientn("2pp share away from ALP", 
+    scale_fill_gradientn(str_c(str_replace(party2, "Australian ", ""), " 2pp share\nvs ALP"), 
                          colours = c(party_colours()["Australian Labor Party"], "grey", party_colours()[party2]),
                          limits = c(floor(party2_sh_rng[1] * 10) / 10, ceiling(party2_sh_rng[2] * 10) / 10),
                          labels = scales::percent) +
