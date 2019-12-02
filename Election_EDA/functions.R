@@ -22,7 +22,8 @@ transf_df <- c("two_pp_detail",
                "nrthct_plgon",
                "party_std", #
                "booth_addr_lst",
-               "cands_std"
+               "cands_std",
+               "first_pref"
 )
 
 objects_core <- c("booth_addr_lst",
@@ -154,7 +155,7 @@ party_colours <- function() {
     select(party_std, party_colour) %>% 
     distinct() %>% 
     deframe() %>% 
-    append(c("Informal" = "grey", "Total" = "black"))
+    append(c("Informal" = "grey", "Total" = "black", "white" = "white"))
 }
 
 print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec = "2018") {
@@ -433,8 +434,9 @@ plot_votes_by_booth_all <- function(p_votes_by_booth_all = votes_by_booth_all, p
     # scale_y_log10("Votes (log scale)", labels = scales::comma) +
     scale_y_continuous("Votes", labels = scales::comma) +
     # expand_limits(y = 0) +
-    geom_point(size = 0.25) +
+    geom_point(size = 0.25, colour = "black") +
     geom_line(colour = "grey", size = 0.25) +
+    geom_point(data = votes_by_booth_prep %>% filter(booth == p_booth_sel), colour = "black", size = 1) +
     geom_line(data = votes_by_booth_prep %>% filter(booth == p_booth_sel), aes(colour = party_std), size = .75) +
     labs(title = str_c("Total votes by polling station: ", p_booth_sel, " highlighted"), x = "") +
     scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y") +
@@ -617,39 +619,84 @@ cre_two_pp_sum <- function(p_two_pp = two_pp) {
 plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
   # Plots bar chart of 1st pref votes and final preference votes
   
+  # p_year = "2002"
+  
   dist_trans <-
-    p_distn %>% 
-    filter(year == p_year) %>% 
-    group_by(year, candidate) %>% 
-    summarise(votes_min = min(votes, na.rm = TRUE),
-              votes_max = max(votes, na.rm = TRUE)) %>% 
-    ungroup() %>% 
-    left_join(cands_std %>% select(-cand_party, -party_colour), by = c("candidate", "year")) %>% 
-    left_join(two_pp_sum, by = c("year", "candidate")) %>% 
-    mutate(votes_max = coalesce(votes, votes_max),
-           candidate = candidate %>% fct_reorder(votes_max)) %>% 
-    select(-votes) %>% 
-    pivot_longer(cols = c(votes_min, votes_max), names_to = "vote_rnd", values_to = "votes") %>% 
-    mutate(hov_text = str_c(readable_nm(candidate), "<br>", party_std, "<br>Votes: ", votes),
-           vote_rnd = fct_rev(vote_rnd))
+    if (p_year >= "2010") {
+      # Calculate the final votes after distributions and the first preferences
+      p_distn %>%
+        # distn %>% 
+        filter(year == p_year) %>% 
+        group_by(year, candidate) %>% 
+        summarise(votes_min = min(votes, na.rm = TRUE),
+                  votes_max = max(votes, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
+        left_join(two_pp_sum, by = c("year", "candidate")) %>% 
+        mutate(votes_max = coalesce(votes, votes_max),
+               votes_redist = votes_max - votes_min,
+               candidate = candidate %>% fct_reorder(votes_max),
+               hov_text = str_c("1st pref: ", scales::comma(votes_min), ". Pref distn: ", 
+                                if_else(is.na(votes_max), "NA", 
+                                        str_c(scales::comma(votes_redist), ". Final: ",
+                                              scales::comma(votes_max))))) %>% 
+        select(-votes) %>% 
+        pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
+        mutate(hov_text = str_c(readable_nm(candidate), "<br>", party_std, "<br>", hov_text),
+               vote_rnd = fct_rev(vote_rnd))
+      
+    } else {
+      # Prior to 2010, can only provide final votes for top 2 candidates and first pref for everyone
+      # Note that in 2002, the Greens candidate had the 2nd highest number of votes but 2pp went to Liberals
+      first_pref %>% 
+        filter(year == p_year) %>% 
+        group_by(year, candidate) %>% 
+        summarise(votes_min = sum(votes, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        left_join(two_pp_sum %>% dplyr::rename(votes_max = votes), by = c("year", "candidate")) %>% 
+        left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
+        mutate(votes_redist = coalesce(as.double(votes_max), votes_min) - votes_min,
+               hov_text = str_c("1st pref: ", scales::comma(votes_min), ". Pref distn: ", 
+                                if_else(is.na(votes_max), "NA", 
+                                        str_c(scales::comma(votes_redist), ". Final: ",
+                                              scales::comma(votes_max))))) %>% 
+        pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
+        mutate(candidate = candidate %>% fct_reorder(coalesce(votes, 0))) %>% 
+        mutate(hov_text = str_c(readable_nm(candidate), "<br>", coalesce(party_std, "NA"), "<br>", hov_text),
+               vote_rnd = fct_rev(vote_rnd),
+               votes = as.integer(votes)) 
+    }
+  
+  
 
     votes_win <-
     dist_trans %>% 
-    summarise(votes_win = sum(if_else(vote_rnd == "votes_min", votes, 0L)) / 2) %>% 
-    pull(votes_win) %>% 
-    .[1]
-  
-  
+      filter(vote_rnd == "votes_min", !is.na(votes)) %>% 
+      mutate(votes_win = sum (if_else(!str_detect(str_to_lower(candidate), "informal"), votes, 0L), na.rm = TRUE) / 2) %>% 
+      slice(which.min(votes)) %>% 
+      mutate(votes_win_txt = str_c("winning line\n", scales::comma(votes_win)))
+
   votes_by_cand_ggp <- 
-    dist_trans %>%   
-    ggplot(aes(x = candidate, y = votes)) +
-    geom_hline(yintercept = votes_win, linetype = "dashed", colour = "grey") +
-    geom_bar(aes(fill = vote_rnd, text = hov_text), stat = "identity", position = "dodge") +
-    scale_fill_discrete(name = "Votes", label = c("votes_min" = "1st Pref", "votes_max" = "After distn")) +
-    labs(title = str_c("First preference and final votes in ", p_year)) +
+    dist_trans %>%  
+    filter(vote_rnd != "votes_max") %>% 
+    mutate(party_fill = if_else(vote_rnd == "votes_redist", "white", coalesce(party_std, "white")),
+           party_fill = party_fill %>% fct_relevel("white", after = 0L)) %>%
+    mutate(candidate = candidate %>% fct_reorder(coalesce(votes, 0L))) %>%
+    
+    ggplot(aes(x = candidate, y = votes, text = hov_text, fill = party_fill)) +
+    geom_hline(yintercept = votes_win$votes_win[1], linetype = "dashed", colour = "grey") +
+    geom_bar(stat = "identity", position = "stack", size = .5, na.rm = TRUE, colour = "grey") +
+    geom_text(data = votes_win, aes(x = candidate, y = votes_win, label = votes_win_txt, hjust = "left"), 
+              inherit.aes = FALSE, size = 3.5, colour = "black", alpha = 0.5) +
+    labs(title = str_c("First preference and final votes in ", p_year), x = "") +
+    scale_fill_manual("Party", values = party_colours()) +
+    scale_colour_manual("Party", values = party_colours()) +
+    scale_y_continuous(labels = scales::comma) +
+    theme(legend.position = "none") +
     coord_flip()
   
   ggplotly(votes_by_cand_ggp, tooltip = "text")
+  # votes_by_cand_ggp
   
 }
 
