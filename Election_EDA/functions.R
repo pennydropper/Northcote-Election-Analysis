@@ -156,7 +156,7 @@ party_colours <- function() {
     select(party_std, party_colour) %>% 
     distinct() %>% 
     deframe() %>% 
-    append(c("Informal" = "grey", "Total" = "black", "white" = "white"))
+    append(c("Informal" = "grey", "Total" = "black", "white" = "white", "Didnt Vote" = "brown"))
 }
 
 print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec = "2018") {
@@ -287,19 +287,31 @@ plot_2pp_vote_ts <- function(p_two_pp_all_booth = two_pp_all_booth) {
     ungroup() %>% 
     mutate(hov_text = str_c("Total: ", votes))
   
+  didnt_vote_total <- 
+    votes_by_booth_all %>% 
+    filter(booth == "All") %>%   # Total votes
+    inner_join(enframe(tot_enrols) %>% rename(year = name), by = "year") %>% 
+    mutate(party_std = "Didnt Vote",
+           votes = value - votes,
+           hov_text = str_c("Didn't vote<br>", scales::comma(votes)),
+           booth = "All booths") %>% 
+    select(date, booth, votes, party_std, hov_text)
+  
   two_pp_plot <-
     p_two_pp_all_booth %>% 
     mutate(hov_text = str_c(party_std, "<br>Votes: ", votes, "<br>Share: ", scales::percent(votes_sh))) %>% 
     
-    ggplot(aes(x = date, y = votes, colour = party_std, shape = party_std)) +
+    ggplot(aes(x = date, y = votes, colour = party_std, shape = party_std, text = hov_text, group = party_std)) +
     geom_line(na.rm = TRUE) +
-    geom_point(na.rm = TRUE, aes(text = hov_text), size = 0.5) +
+    geom_point(na.rm = TRUE, size = 0.5) +
     scale_y_log10("2 party preferred votes", labels = scales::comma) +
     scale_color_manual("Party", values = party_colours()) +
     scale_shape_discrete("Party") +
     
     geom_line(data = two_pp_total) +
-    geom_point(data = two_pp_total, aes(text = hov_text), size = 0.5) +
+    geom_point(data = two_pp_total, size = 0.5) +
+    geom_line(data = didnt_vote_total) +
+    geom_point(data = didnt_vote_total, size = 0.5) +
     
     labs(title = "Two party preferred votes", x = "") +
     scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
@@ -464,6 +476,17 @@ cre_party_votes_by_elec <- function(p_first_pref = first_pref, p_elec_dates = el
 }
 
 plot_party_votes_by_elec <- function(p_party_votes_by_elec = party_votes_by_elec){
+  
+  didnt_vote_total <- 
+    votes_by_booth_all %>% 
+    filter(booth == "All") %>%   # Total votes
+    inner_join(enframe(tot_enrols) %>% rename(year = name), by = "year") %>% 
+    mutate(party_std = "Didnt Vote",
+           votes = value - votes,
+           hov_text = str_c("Didn't vote<br>", scales::comma(votes)),
+           booth = "All booths") %>% 
+    select(date, booth, votes, party_std, hov_text)
+  
   party_votes_by_elec_ggp <-
     p_party_votes_by_elec %>% 
     group_by(date) %>% 
@@ -473,15 +496,19 @@ plot_party_votes_by_elec <- function(p_party_votes_by_elec = party_votes_by_elec
     ungroup %>% 
     complete(date, party_std) %>% 
     
-    ggplot(aes(x = date, y = votes)) +
-    geom_point(aes(text = hov_text, colour = party_std, fill = party_std), size = 1) +
-    geom_line(aes(group = party_std, colour = party_std), size = 0.25, na.rm = TRUE, linetype = "solid") +
+    ggplot(aes(x = date, y = votes, group = party_std, text = hov_text, colour = party_std, fill = party_std)) +
+    geom_point(size = 1) +
+    geom_line(size = 0.25, na.rm = TRUE, linetype = "solid") +
     scale_fill_manual("Party", values = party_colours()) +
     scale_colour_manual("Party", values = party_colours()) +
-    scale_y_log10(label = scales::comma) +
+    # scale_y_log10(label = scales::comma) +
     labs(title = "Total first preference votes by party", x = "") +
     expand_limits(y = 0) +
-    geom_line(data = votes_by_booth_all %>% filter(booth == "All"), colour = "grey", size = 0.25, aes(group = booth, text = "Total")) +
+    # geom_line(data = votes_by_booth_all %>% filter(booth == "All"), colour = "grey", size = 0.25, aes(group = booth)) +
+    
+    geom_point(data = didnt_vote_total, size = 1) +
+    geom_line(data = didnt_vote_total, size = 0.25, na.rm = TRUE, linetype = "solid") +
+
     scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
   
   ggplotly(party_votes_by_elec_ggp, tooltip = "text")
