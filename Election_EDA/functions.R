@@ -23,7 +23,8 @@ transf_df <- c("two_pp_detail",
                "party_std", #
                "booth_addr_lst",
                "cands_std",
-               "first_pref"
+               "first_pref",
+               "tot_enrol"
 )
 
 objects_core <- c("booth_addr_lst",

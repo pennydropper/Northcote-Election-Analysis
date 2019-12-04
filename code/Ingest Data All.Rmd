@@ -31,6 +31,8 @@ elec_dates_flnm <- "Vic Elections.xlsx"
 domain <- "https://www.vec.vic.gov.au/Results/State"
 electorate_nm <- "Northcote"
 
+# e.g. https://www.vec.vic.gov.au/Results/State2018/NorthcoteDistrict.html
+
 first_pref_pg_nm <- "FPVbyVotingCentre"
 # e.g. https://www.vec.vic.gov.au/Results/State2018/FPVbyVotingCentreNorthcoteDistrict.html
 # e.g. https://www.vec.vic.gov.au/Results/state1999FPVbyVotingCentreNorthcoteDistrict.html
@@ -53,6 +55,7 @@ plgon_dist <- "NORTHCOTE"
 
 # First preference page CSS selectors
 first_pref_css_sels <- ".table-responsive td , .table-responsive th"
+tot_enrol_css_sels <- ".box-container"
 
 vote_cen_col_header <- "VOTING CENTRES"
 
@@ -70,6 +73,48 @@ elec_dates <-
 
 ```
 
+# Import total enrolment
+
+```{r total_enrol}
+
+years <- elec_dates$elec_ID
+
+tot_enrols <- vector("integer", length(years)) %>% 
+  set_names(years)
+
+for (i in seq_along(tot_enrols)) {
+  # Step through each year for an election
+  
+  # i = 6
+  # yr = "1999"
+  yr <- years[[i]]
+  tot_enrol_url <- str_c(domain, yr, "/", electorate_nm, "District.html", sep = "")
+
+  # Determine if URL is a valid page
+  if (read_html(tot_enrol_url) %>% html_nodes(tot_enrol_css_sels) %>% length() == 0) {
+    # Page address is invalid, try alternative address
+    tot_enrol_url <- str_c(domain, yr, "result", electorate_nm, "District.html", sep = "")
+    # i.e. it drops the "/" after the yr.
+    
+  }
+      
+  # tot_enrols [[i]] <-
+  tot_enrol <-
+    read_html(tot_enrol_url) %>% 
+    html_nodes(tot_enrol_css_sels) %>% 
+    html_text() %>%
+    discard(., ~ !str_detect(., "Total\\s*Enrolment")) %>% 
+    map_chr(1) %>% # Take the first occurance
+    # str_replace_all(., "\r\n", "") %>% 
+    str_extract(., "\\d+") %>% # Assumes that total enrolments is the first number in this table
+    as.integer()
+
+  tot_enrols [[i]] <- 
+    tot_enrol 
+}
+
+
+```
 # Import first preference results
 
 ```{r first_pref}
