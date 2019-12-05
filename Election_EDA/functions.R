@@ -290,9 +290,9 @@ plot_2pp_vote_ts <- function(p_two_pp_all_booth = two_pp_all_booth) {
   didnt_vote_total <- 
     votes_by_booth_all %>% 
     filter(booth == "All") %>%   # Total votes
-    inner_join(enframe(tot_enrols) %>% rename(year = name), by = "year") %>% 
-    mutate(party_std = "Didnt Vote",
-           votes = value - votes,
+    mutate(tot_enrol = map_dbl(year, ~tot_enrols[[.]]),
+           party_std = "Didnt Vote",
+           votes = tot_enrol - votes,
            hov_text = str_c("Didn't vote<br>", scales::comma(votes)),
            booth = "All booths") %>% 
     select(date, booth, votes, party_std, hov_text)
@@ -477,12 +477,12 @@ cre_party_votes_by_elec <- function(p_first_pref = first_pref, p_elec_dates = el
 
 plot_party_votes_by_elec <- function(p_party_votes_by_elec = party_votes_by_elec){
   
-  didnt_vote_total <- 
+  didnt_vote_total <-
     votes_by_booth_all %>% 
     filter(booth == "All") %>%   # Total votes
-    inner_join(enframe(tot_enrols) %>% rename(year = name), by = "year") %>% 
-    mutate(party_std = "Didnt Vote",
-           votes = value - votes,
+    mutate(tot_enrol = map_dbl(year, ~tot_enrols[[.]]),
+           party_std = "Didnt Vote",
+           votes = tot_enrol - votes,
            hov_text = str_c("Didn't vote<br>", scales::comma(votes)),
            booth = "All booths") %>% 
     select(date, booth, votes, party_std, hov_text)
@@ -490,10 +490,10 @@ plot_party_votes_by_elec <- function(p_party_votes_by_elec = party_votes_by_elec
   party_votes_by_elec_ggp <-
     p_party_votes_by_elec %>% 
     group_by(date) %>% 
-    mutate(votes_sh = votes / sum(votes, na.rm = TRUE),
-           party_std = coalesce(party_std, "Informal") %>% fct_relevel("Informal", after = Inf),
+    mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(party_std = coalesce(party_std, "Informal") %>% fct_relevel("Informal", after = Inf),
            hov_text = str_c(party_std, "<br>Votes: ", scales::comma(votes), " (", scales::percent(votes_sh), ")")) %>% 
-    ungroup %>% 
     complete(date, party_std) %>% 
     
     ggplot(aes(x = date, y = votes, group = party_std, text = hov_text, colour = party_std, fill = party_std)) +
