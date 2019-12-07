@@ -288,13 +288,7 @@ plot_2pp_vote_ts <- function(p_two_pp_all_booth = two_pp_all_booth) {
     mutate(hov_text = str_c("Total: ", votes))
   
   didnt_vote_total <- 
-    votes_by_booth_all %>% 
-    filter(booth == "All") %>%   # Total votes
-    mutate(tot_enrol = map_dbl(year, ~tot_enrols[[.]]),
-           party_std = "Didnt Vote",
-           votes = tot_enrol - votes,
-           hov_text = str_c("Didn't vote<br>", scales::comma(votes)),
-           booth = "All booths") %>% 
+    merge_tot_votes_enrolled() %>% 
     select(date, booth, votes, party_std, hov_text)
   
   two_pp_plot <-
@@ -475,16 +469,23 @@ cre_party_votes_by_elec <- function(p_first_pref = first_pref, p_elec_dates = el
     left_join(party_std, by = "cand_party")
 }
 
-plot_party_votes_by_elec <- function(p_party_votes_by_elec = party_votes_by_elec){
+merge_tot_votes_enrolled <- function(p_votes_by_booth_all = votes_by_booth_all, p_tot_enrols = tot_enrols) {
+  # Merge total votes per election with total enrolled
   
-  didnt_vote_total <-
-    votes_by_booth_all %>% 
+  p_votes_by_booth_all %>% 
     filter(booth == "All") %>%   # Total votes
-    mutate(tot_enrol = map_dbl(year, ~tot_enrols[[.]]),
+    select(-votes_sh) %>% 
+    mutate(tot_enrol = map_dbl(year, ~p_tot_enrols[[.]]),
            party_std = "Didnt Vote",
            votes = tot_enrol - votes,
            hov_text = str_c("Didn't vote<br>", scales::comma(votes)),
-           booth = "All booths") %>% 
+           booth = "All booths")
+}
+
+plot_party_votes_by_elec <- function(p_party_votes_by_elec = party_votes_by_elec){
+  
+  didnt_vote_total <-
+    merge_tot_votes_enrolled() %>% 
     select(date, booth, votes, party_std, hov_text)
   
   party_votes_by_elec_ggp <-
@@ -644,6 +645,60 @@ cre_two_pp_sum <- function(p_two_pp = two_pp) {
     ungroup()
 }
 
+first_final_votes_no_distn <- function(p_year = "2002") {
+  # Summarise candidates first and final votes without access to distribution data
+  first_pref %>% 
+    filter(year == p_year, candidate != "informal") %>% 
+    group_by(year, candidate) %>% 
+    summarise(votes_min = sum(votes, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    left_join(two_pp_sum %>% dplyr::rename(votes_max = votes), by = c("year", "candidate")) %>% 
+    left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
+    mutate(votes_redist = coalesce(as.double(votes_max), votes_min) - votes_min,
+           hov_text = str_c("1st pref: ", scales::comma(votes_min), ". Pref distn: ", 
+                            if_else(is.na(votes_max), "NA", 
+                                    str_c(scales::comma(votes_redist), ". Final: ",
+                                          scales::comma(votes_max))))) %>% 
+    pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
+    mutate(hov_text = str_c(readable_nm(candidate), "<br>", coalesce(party_std, "NA"), "<br>", hov_text),
+           votes = as.integer(votes))
+}
+
+first_final_votes_with_distn <- function(p_distn = distn, p_year =  "2017") {
+  # Summarise candidates first and final votes with access to richer distribution data
+  p_distn %>%
+    filter(year == p_year) %>% 
+    group_by(year, candidate) %>% 
+    summarise(votes_min = min(votes, na.rm = TRUE),
+              votes_max = max(votes, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
+    left_join(two_pp_sum, by = c("year", "candidate")) %>% 
+    mutate(votes_max = coalesce(votes, votes_max),
+           votes_redist = votes_max - votes_min,
+           hov_text = str_c("1st pref: ", scales::comma(votes_min), ". Pref distn: ", 
+                            if_else(is.na(votes_max), "NA", 
+                                    str_c(scales::comma(votes_redist), ". Final: ",
+                                          scales::comma(votes_max))))) %>% 
+    select(-votes) %>% 
+    pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
+    mutate(hov_text = str_c(readable_nm(candidate), "<br>", party_std, "<br>", hov_text))
+}
+
+informal_votes <- function(p_year = "2002") {
+  # Extract the informal votes from the first_pref data
+  first_pref %>% 
+    filter(year == p_year, candidate == "informal") %>% 
+    group_by(year, candidate) %>% 
+    summarise(votes = sum(votes, na.rm = TRUE),
+              cand_party = NA_character_,
+              party_std = "white",
+              hov_text = str_c("Informal votes: ", scales::comma(votes))) %>% 
+    ungroup() %>% 
+    mutate(candidate = str_to_title(candidate),
+           vote_rnd = "votes_min")
+}
+
 plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
   # Plots bar chart of 1st pref votes and final preference votes
   
@@ -652,68 +707,49 @@ plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
   dist_trans <-
     if (p_year >= "2010") {
       # Calculate the final votes after distributions and the first preferences
-      p_distn %>%
-        # distn %>% 
-        filter(year == p_year) %>% 
-        group_by(year, candidate) %>% 
-        summarise(votes_min = min(votes, na.rm = TRUE),
-                  votes_max = max(votes, na.rm = TRUE)) %>% 
-        ungroup() %>% 
-        left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
-        left_join(two_pp_sum, by = c("year", "candidate")) %>% 
-        mutate(votes_max = coalesce(votes, votes_max),
-               votes_redist = votes_max - votes_min,
-               candidate = candidate %>% fct_reorder(votes_max),
-               hov_text = str_c("1st pref: ", scales::comma(votes_min), ". Pref distn: ", 
-                                if_else(is.na(votes_max), "NA", 
-                                        str_c(scales::comma(votes_redist), ". Final: ",
-                                              scales::comma(votes_max))))) %>% 
-        select(-votes) %>% 
-        pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
-        mutate(hov_text = str_c(readable_nm(candidate), "<br>", party_std, "<br>", hov_text),
-               vote_rnd = fct_rev(vote_rnd))
+      
+      first_final_votes_with_distn(p_distn, p_year)
       
     } else {
       # Prior to 2010, can only provide final votes for top 2 candidates and first pref for everyone
       # Note that in 2002, the Greens candidate had the 2nd highest number of votes but 2pp went to Liberals
-      first_pref %>% 
-        filter(year == p_year) %>% 
-        group_by(year, candidate) %>% 
-        summarise(votes_min = sum(votes, na.rm = TRUE)) %>% 
-        ungroup() %>% 
-        left_join(two_pp_sum %>% dplyr::rename(votes_max = votes), by = c("year", "candidate")) %>% 
-        left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
-        mutate(votes_redist = coalesce(as.double(votes_max), votes_min) - votes_min,
-               hov_text = str_c("1st pref: ", scales::comma(votes_min), ". Pref distn: ", 
-                                if_else(is.na(votes_max), "NA", 
-                                        str_c(scales::comma(votes_redist), ". Final: ",
-                                              scales::comma(votes_max))))) %>% 
-        pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
-        mutate(candidate = candidate %>% fct_reorder(coalesce(votes, 0))) %>% 
-        mutate(hov_text = str_c(readable_nm(candidate), "<br>", coalesce(party_std, "NA"), "<br>", hov_text),
-               vote_rnd = fct_rev(vote_rnd),
-               votes = as.integer(votes)) 
+      
+      first_final_votes_no_distn(p_year)
+      
     }
   
-  
-
-    votes_win <-
+  votes_win <-
+    # Work out the number of votes required to win
     dist_trans %>% 
-      filter(vote_rnd == "votes_min", !is.na(votes)) %>% 
-      mutate(votes_win = sum (if_else(!str_detect(str_to_lower(candidate), "informal"), votes, 0L), na.rm = TRUE) / 2) %>% 
-      slice(which.min(votes)) %>% 
-      mutate(votes_win_txt = str_c("winning line\n", scales::comma(votes_win)))
+    filter(vote_rnd == "votes_min", !is.na(votes), !str_detect(str_to_lower(cand_party), "(didnt vote)|(informal)")) %>% 
+    mutate(votes_win = sum (if_else(!str_detect(str_to_lower(candidate), "informal"), as.integer(votes), 0L), na.rm = TRUE) / 2) %>% 
+    slice(which.min(votes)) %>% 
+    mutate(votes_win_txt = str_c("winning line\n", scales::comma(votes_win)))
+  
+  dist_trans <-
+    # Rebuild the transformed distribution data, starting with didn't vote cohort
+    merge_tot_votes_enrolled() %>% 
+    filter(year == p_year) %>% 
+    mutate(candidate = "Didnt vote",
+           cand_party = "Didnt vote",
+           vote_rnd = "votes_min") %>% 
+    select(year, candidate, cand_party, party_std, hov_text, vote_rnd, votes) %>% 
+    # Add the informal votes
+      bind_rows(informal_votes(p_year)) %>% 
+    # Add back the candidate votes
+    bind_rows(dist_trans) %>% 
+    # Set the candidate order
+    mutate(candidate = candidate %>% fct_reorder(., votes, sum, na.rm = TRUE) %>% 
+             fct_relevel("Didnt vote", "Informal"))
 
   votes_by_cand_ggp <- 
     dist_trans %>%  
     filter(vote_rnd != "votes_max") %>% 
-    mutate(party_fill = if_else(vote_rnd == "votes_redist", "white", coalesce(party_std, "white")),
-           party_fill = party_fill %>% fct_relevel("white", after = 0L)) %>%
-    mutate(candidate = candidate %>% fct_reorder(coalesce(votes, 0L))) %>%
-    
-    ggplot(aes(x = candidate, y = votes, text = hov_text, fill = party_fill)) +
+
+    ggplot(aes(x = candidate, y = votes, text = hov_text, fill = party_std)) +
     geom_hline(yintercept = votes_win$votes_win[1], linetype = "dashed", colour = "grey") +
-    geom_bar(stat = "identity", position = "stack", size = .5, na.rm = TRUE, colour = "grey") +
+    geom_bar(stat = "identity", position = "stack", size = .2, na.rm = TRUE, colour = "grey",
+             aes(alpha = if_else(vote_rnd == "votes_min", 1, .8) %>% factor())) +
     geom_text(data = votes_win, aes(x = candidate, y = votes_win, label = votes_win_txt, hjust = "left"), 
               inherit.aes = FALSE, size = 3.5, colour = "black", alpha = 0.5) +
     labs(title = str_c("First preference and final votes in ", p_year), x = "") +
@@ -724,8 +760,7 @@ plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
     coord_flip()
   
   ggplotly(votes_by_cand_ggp, tooltip = "text")
-  # votes_by_cand_ggp
-  
+
 }
 
 cre_distn_gap <- function(p_two_pp_sum = two_pp_sum, p_distn = distn, p_pref = pref) {
