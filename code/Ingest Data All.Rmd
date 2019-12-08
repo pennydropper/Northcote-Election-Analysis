@@ -113,6 +113,7 @@ for (i in seq_along(tot_enrols)) {
     tot_enrol 
 }
 
+# write_dfs("tot_enrols")
 
 ```
 # Import first preference results
@@ -426,7 +427,7 @@ retrieve_dfs(objects_core, ".././data")
 c("two_pp_detail") %>% 
   walk(., ~ assign(.x, read_rds(str_c(data_dir, str_c(.x, ".rds", sep = ""), sep = "/"))))
 
-
+# write_dfs("tot_enrol")
 
 ```
 

@@ -335,13 +335,13 @@ plot_two_pp_by_booth_nondom <-
     
     p_two_pp_by_booth_nondom <-
       p_two_pp_by_booth_nondom %>% 
-      semi_join(booth_addr_lst, by = "booth") %>% 
+      # semi_join(booth_addr_lst, by = "booth") %>% 
       mutate(non_dom_party = TRUE)  
     
     # Set up text values
     two_pp_text <-
-      p_two_pp_by_booth_nondom %>% filter(booth == p_booth, date == max(date, na.rm = TRUE)) 
-      # rbind(data = p_two_pp_all_booth %>% filter(non_dom_party, date == max(p_two_pp_by_booth_nondom$date, na.rm = TRUE)))
+      p_two_pp_by_booth_nondom %>% filter(booth == p_booth, date == max(date, na.rm = TRUE)) %>% 
+      rbind(data = p_two_pp_all_booth %>% filter(non_dom_party, year(date) == "2002") %>% mutate(party_std = "Total"))
     # Filter out the totals label as it can overlap with the polling station label with plotly :-(
     
     two_pp_by_booth_ggplot <-
@@ -357,7 +357,7 @@ plot_two_pp_by_booth_nondom <-
       scale_shape_discrete("Party") +
       theme(legend.position = "none") +
       geom_line(data = p_two_pp_all_booth %>% filter(non_dom_party), colour = "black") +
-      geom_point(data = p_two_pp_all_booth %>% filter(non_dom_party), aes(colour = party_std), size = 2) +
+      geom_point(data = p_two_pp_all_booth %>% filter(non_dom_party), colour = "black", size = 2) +
       
       geom_text(data = two_pp_text, 
                 aes(label = booth), nudge_x = 700, vjust = c("left"), check_overlap = TRUE) +
@@ -369,6 +369,7 @@ plot_two_pp_by_booth_nondom <-
     
     ggplotly(two_pp_by_booth_ggplot, tooltip = "hov_text")
     # two_pp_by_booth_ggplot
+    # two_pp_text
   }
 
 cre_votes_by_booth_elec <- function(p_first_pref = first_pref, p_elec_dates = elec_dates, p_two_pp_by_booth_nondom = two_pp_by_booth_nondom) {

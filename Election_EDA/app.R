@@ -186,7 +186,8 @@ ui <- fluidPage(
                    sidebarPanel(
                       selectInput("two_pp_by_booth_nondom_plot_booth",
                                   "Select polling station to highlight:",
-                                  choices = two_pp$booth %>% unique() %>% sort()),
+                                  choices = two_pp_by_booth_nondom %>% filter(votes > 0) %>%
+                                     pull(booth) %>% unique() %>% sort()),
                       width = 2
                    ),
                    
