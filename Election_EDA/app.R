@@ -24,7 +24,7 @@ retrieve_dfs(transf_df, "./data")
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
-   theme = "bootstrap.css",
+   # theme = "bootstrap.css",
    # Application title
    titlePanel("Northcote Election Results - Explore the data!"),
    
@@ -40,6 +40,104 @@ ui <- fluidPage(
       # Total first preference votes by party
       # Votes distribution by party
       # Votes distribution by candidate
+      
+      tabPanel( "First and Final Votes",
+                # Total first and final votes for given year
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      selectInput("first_final_votes_sel_year",
+                                  "Select year to display for chart:",
+                                  choices = elec_dates$elec_ID %>% keep(~. >= "2010") %>% sort(decreasing = TRUE)),
+                      width = 2
+                   ),
+                   
+                   mainPanel(
+                      plotlyOutput("votes_by_cand_plot", height = 700)
+                   )
+                )
+      ),
+      
+      tabPanel( "First Pref Votes",
+                # Total first preference votes by party
+                
+                fluidRow(
+                   plotlyOutput("party_votes_by_elec_plot", height = 700)
+                )
+      ),
+      
+      tabPanel( "2 Party Preferred Share",
+                # Two party preferred share
+                
+                fluidRow(
+                   # h2(textOutput("plot_booth_votes_bar_heading")),  # Something wacky about these plots
+                   plotlyOutput("two_pp_all_booth_plot", height = 700)
+                   # h2("Hello world")
+                )
+                
+      ),
+      
+      tabPanel( "2 Party Preferred Votes",
+                # Two party preferred votes
+                
+                fluidRow(
+                   plotlyOutput("two_pp_vote_ts_plot", height = 700)
+                )
+      ),
+      
+      tabPanel( "Votes distribution FROM party",
+                # Votes distribution by party
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      selectInput("votes_distn_party_sel",
+                                  "Select party to display for chart:",
+                                  choices = pref_w_party$party_std.from %>% unique() %>% sort()),
+                      width = 2
+                   ),
+                   
+                   mainPanel(
+                      plotlyOutput("distn_party_prefs_plot", height = "auto", width = "auto")
+                   )
+                )
+      ),
+      
+      tabPanel( "Votes distribution TO party",
+                # Votes distribution to party
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      checkboxGroupInput("votes_distn_party_to_sel",
+                                  "Select party to display for chart:",
+                                  choices = pref_w_party$party_std.to %>% unique() %>% sort(),
+                                  selected = c("Australian Labor Party", "Australian Greens")
+                                  ),
+                      width = 2
+                      
+                   ),
+                   
+                   mainPanel(
+                      plotlyOutput("distn_party_prefs_to_plot", height = 1000, width = "auto")
+                   )
+                )
+      ),
+      
+      tabPanel( "Votes distribution FROM candidate",
+                # Votes distribution by candidate
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      selectInput("votes_distn_cand_sel",
+                                  "Select candidate to display for chart:",
+                                  choices = pref_w_party$from_cand %>% unique() %>% sort()),
+                      width = 2
+                   ),
+                   
+                   mainPanel(
+                      plotlyOutput("pref_distn_sel_cand_plot", height = 700)
+                   )
+                )
+      ),
       
       tabPanel( "Polling station map",
          # Northcote map with year selector
@@ -99,25 +197,6 @@ ui <- fluidPage(
                 )
       ),
       
-      tabPanel( "2 Party Pref Share",
-                # Two party preferred share
-
-                fluidRow(
-                   # h2(textOutput("plot_booth_votes_bar_heading")),  # Something wacky about these plots
-                   plotlyOutput("two_pp_all_booth_plot")
-                   # h2("Hello world")
-                )
-               
-      ),
-      
-      tabPanel( "2 Party Pref Votes",
-                # Two party preferred votes
-                
-                fluidRow(
-                   plotlyOutput("two_pp_vote_ts_plot", height = 700)
-                )
-      ),
-      
       tabPanel( "Total votes by polling station",
                 # Total votes by booth
                 
@@ -136,66 +215,8 @@ ui <- fluidPage(
                       plotlyOutput("votes_by_booth_all_plot", height = 700)
                    )
                 )
-      ),
-      
-      tabPanel( "First Pref Votes",
-                # Total first preference votes by party
-                
-                fluidRow(
-                   plotlyOutput("party_votes_by_elec_plot", height = 700)
-                )
-      ),
-      
-      tabPanel( "First and Final Votes",
-                # Total first and final votes for given year
-                
-                sidebarLayout(
-                   sidebarPanel(
-                      selectInput("first_final_votes_sel_year",
-                                  "Select year to display for chart:",
-                                  choices = elec_dates$elec_ID %>% keep(~. >= "2010") %>% sort(decreasing = TRUE)),
-                      width = 2
-                   ),
-                   
-                   mainPanel(
-                      plotlyOutput("votes_by_cand_plot", height = 700)
-                   )
-                )
-      ),
-      
-      tabPanel( "Votes distn by party",
-                # Votes distribution by party
-                
-                sidebarLayout(
-                   sidebarPanel(
-                      selectInput("votes_distn_party_sel",
-                                  "Select party to display for chart:",
-                                  choices = pref_w_party$party_std.from %>% unique() %>% sort()),
-                      width = 2
-                   ),
-                   
-                   mainPanel(
-                      plotlyOutput("distn_party_prefs_plot", height = "auto", width = "auto")
-                   )
-                )
-      ),
-      
-      tabPanel( "Votes distn by candidate",
-                # Votes distribution by candidate
-                
-                sidebarLayout(
-                   sidebarPanel(
-                      selectInput("votes_distn_cand_sel",
-                                  "Select candidate to display for chart:",
-                                  choices = pref_w_party$from_cand %>% unique() %>% sort()),
-                      width = 2
-                   ),
-                   
-                   mainPanel(
-                      plotlyOutput("pref_distn_sel_cand_plot", height = 700)
-                   )
-                )
       )
+      
       
    )
 )
@@ -248,6 +269,10 @@ server <- function(input, output) {
    
    output$distn_party_prefs_plot <- renderPlotly({
       plot_distn_party_prefs(input$votes_distn_party_sel, pref_w_party, elec_dates)  
+   })
+   
+   output$distn_party_prefs_to_plot <- renderPlotly({
+      plot_distn_party_prefs_rec(input$votes_distn_party_to_sel, pref_w_party, elec_dates)  
    })
    
    output$pref_distn_sel_cand_plot <- renderPlotly({

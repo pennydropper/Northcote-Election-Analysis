@@ -24,7 +24,7 @@ transf_df <- c("two_pp_detail",
                "booth_addr_lst",
                "cands_std",
                "first_pref",
-               "tot_enrol"
+               "tot_enrols"
 )
 
 objects_core <- c("booth_addr_lst",
@@ -44,7 +44,6 @@ write_dfs <- function(p_objs, p_dir = data_dir) {
     walk(., ~ write_rds(get(.), str_c(p_dir, str_c(., ".rds", sep = ""), sep = "/"), "none"))
 }
 
-# getwd()
 
 retrieve_dfs <- function(p_objs, p_dir = data_dir){
   # Retrieve objects specified in list from rds file
@@ -549,6 +548,36 @@ plot_distn_party_prefs <- function(p_party_from = "Liberal", p_pref_w_party = pr
   ggplotly(pref_w_party_ggp, tooltip = "text")
 }
 
+plot_distn_party_prefs_rec <- function(p_party_to = c("Australian Greens", "Australian Labor Party"),
+                                       p_pref_w_party = pref_w_party, p_elec_dates = elec_dates) {
+  pref_w_party_ggp <-
+    p_pref_w_party %>% 
+    # complete(year, party_std.from) %>% 
+    filter(party_std.to %in% p_party_to) %>% 
+    filter(party_std.to != party_std.from) %>% 
+    # Ignore preferences from Independents to Independents
+    group_by(year, party_std.from, from_cand, party_std.to) %>%
+    summarise(votes = sum(votes, na.rm = TRUE)) %>%
+    group_by(year) %>% 
+    mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+    ungroup %>% 
+    mutate(hovtext = str_c(party_std.from, " (", from_cand, ")<br>", votes, " votes. (", scales::percent(votes_sh), ")<br>",
+                           "distributed to ", party_std.to)) %>%
+    # filter(year == "2017") %>% arrange(party_std.to) %>% 
+    full_join(p_elec_dates %>% select(year = elec_ID) %>% filter(year >= "2010"), by = "year") %>% 
+    mutate(party_std.to = if_else(is.na(party_std.to), p_party_to[[1]], party_std.to),
+           party_std.from = party_std.from %>% abbreviate(minlength = 8) %>% fct_reorder(votes, .fun = sum, .desc = TRUE)) %>%
+    
+    ggplot(aes(x = year, y = votes, fill = party_std.to, text = hovtext)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    scale_fill_manual("Party", values = party_colours()) +
+    facet_grid(party_std.from ~ ., scales = "fixed") +
+    
+    labs(title = str_c("Distribution of ", p_party_to, " votes by election"), x = "", y = "votes distributed")
+  
+  ggplotly(pref_w_party_ggp, tooltip = "text")
+}
+
 readable_nm <- function(nm) {
   # Rewrite the candidate name to something more readable
   str_c(str_replace(nm, "^.*, ", ""), " ", str_replace(nm, ", .*", "") %>% str_to_title()) %>% 
@@ -577,11 +606,14 @@ plot_pref_distn_sel_cand <- function(p_candidate = "BISHOP, Robert", p_pref_w_pa
     p_pref_w_party %>% 
     filter(from_cand == p_candidate) %>% 
     mutate(hovtext = str_c(party_std.to, " (", to_cand, ")<br>", votes, " votes. (", scales::percent(votes / votes_sum), ")")) %>% 
+    full_join(elec_dates %>% select(year = elec_ID) %>% filter(year >= "2010"), by = "year") %>%
     # glimpse()
     
-    ggplot(aes(x = year, y = votes)) +
-    geom_bar(aes(fill = party_std.to, text = hovtext), stat = "identity", position = "dodge") +
-    scale_fill_manual("Party", values = party_colours()) +
+    ggplot(aes(x = year, y = votes, fill = party_std.to, text = hovtext)) +
+    geom_bar(stat = "identity", position = "dodge", na.rm = TRUE) +
+    scale_fill_manual("Party", values = party_colours(),
+                      limits = p_pref_w_party %>% filter(from_cand == p_candidate) %>% pull(party_std.to) %>% unique(),
+                      na.translate = TRUE) +
     
     labs(title = str_c("Distribution of ", readable_nm(p_candidate), " preferences by election"), x = "", y = "votes")  
   
