@@ -335,42 +335,66 @@ plot_two_pp_by_booth_nondom <-
     
     p_two_pp_by_booth_nondom <-
       p_two_pp_by_booth_nondom %>% 
-      # semi_join(booth_addr_lst, by = "booth") %>% 
       mutate(non_dom_party = TRUE)  
     
-    # Set up text values
-    two_pp_text <-
-      p_two_pp_by_booth_nondom %>% filter(booth == p_booth, date == max(date, na.rm = TRUE)) %>% 
-      rbind(data = p_two_pp_all_booth %>% filter(non_dom_party, year(date) == "2002") %>% mutate(party_std = "Total"))
-    # Filter out the totals label as it can overlap with the polling station label with plotly :-(
+    # Create list of entries for the legend
+    # note that this doesn't appear to work for ggplotly
+    legend_list <-
+      p_two_pp_by_booth_nondom %>% 
+      filter(booth == p_booth) %>% 
+      mutate(leg_text = str_c(booth, ", ", str_replace(party_std, "Australian ", ""), " 2pp")) %>% # eg "Westgarth, Liberal 2pp"
+      select(leg_text, party_std) %>%
+      rbind(tibble(leg_text = "All stations", party_std = "Total")) %>% 
+      distinct()
     
     two_pp_by_booth_ggplot <-
       p_two_pp_by_booth_nondom %>% 
       ggplot(aes(x = date, y = votes_sh, shape = party_std, group = booth, text = hov_text, colour = party_std)) +
-      geom_line(na.rm = TRUE, size = 0.15, colour = "grey") +
-      geom_point(na.rm = TRUE, size = 0.5, colour = "grey") +
-      geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey") +
+      geom_line(aes(colour = NULL, shape = NULL), na.rm = TRUE, size = 0.15, colour = "grey", show.legend = FALSE, linetype = "dotted") +
+      geom_line(na.rm = TRUE, size = 0.15, colour = "grey", show.legend = FALSE) +
+      geom_point(na.rm = TRUE, size = 0.5, colour = "grey", show.legend = FALSE) +
+      geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey", show.legend = FALSE) +
       scale_y_continuous("2 party preferred share", labels = scales::percent) +
       geom_line(data = p_two_pp_by_booth_nondom %>% filter(booth == p_booth)) +
-      geom_point(data = p_two_pp_by_booth_nondom %>% filter(booth == p_booth), size = 2) +
-      scale_color_manual("Party", values = party_colours()) +
-      scale_shape_discrete("Party") +
-      theme(legend.position = "none") +
-      geom_line(data = p_two_pp_all_booth %>% filter(non_dom_party), colour = "black") +
-      geom_point(data = p_two_pp_all_booth %>% filter(non_dom_party), colour = "black", size = 2) +
+      geom_point(data = p_two_pp_by_booth_nondom %>% filter(booth == p_booth), size = 2, show.legend = FALSE) +
+      theme(legend.position = "bottom") +  # This isn't working with plotly
+      geom_line(data = p_two_pp_all_booth %>% filter(non_dom_party) %>% mutate(party_std = "Total")) +
+      geom_point(data = p_two_pp_all_booth %>% filter(non_dom_party), colour = "black", size = 2, show.legend = FALSE) +
       
-      geom_text(data = two_pp_text, 
-                aes(label = booth), nudge_x = 700, vjust = c("left"), check_overlap = TRUE) +
-      expand_limits(x = max(p_two_pp_by_booth_nondom$date) + 1000) +
-      
-      labs(title = str_c("Two party preferred share by polling station: ", p_booth, " highlighted", sep = ""), x = "") +
+      scale_color_manual(name = "Polling station", values = party_colours(),
+                         labels = legend_list$leg_text,
+                         breaks = legend_list$party_std) +
+
+            labs(title = str_c("Two party preferred share by polling station: ", p_booth, " highlighted", sep = ""), x = "") +
       scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
     
     
-    ggplotly(two_pp_by_booth_ggplot, tooltip = "hov_text")
+    two_pp_by_booth_ggplotly <-
+      ggplotly(two_pp_by_booth_ggplot, tooltip = "hov_text")
+    
+    two_pp_by_booth_ggplotly$x$data <- 
+      two_pp_by_booth_ggplotly$x$data %>% 
+      map(rmv_invalid_leg)
+    
+    two_pp_by_booth_ggplotly
     # two_pp_by_booth_ggplot
-    # two_pp_text
+
   }
+
+rmv_invalid_leg <- function(plotly_x) {
+  # Inpects an x$data list in a plotly object, removes any invalid legend entries and returns a transformed x$data object
+  if ("legendgroup" %in% names(plotly_x)) {
+    # The list includes a legend group
+    
+    if (str_detect(plotly_x$legendgroup, "^\\(")) {
+      # Legend group looks invalid
+      plotly_x$showlegend <- FALSE
+    }
+    
+  }
+  plotly_x
+  
+}
 
 cre_votes_by_booth_elec <- function(p_first_pref = first_pref, p_elec_dates = elec_dates, p_two_pp_by_booth_nondom = two_pp_by_booth_nondom) {
   p_first_pref %>% 
