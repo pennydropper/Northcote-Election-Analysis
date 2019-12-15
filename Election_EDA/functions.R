@@ -342,13 +342,15 @@ plot_two_pp_by_booth_nondom <-
     legend_list <-
       p_two_pp_by_booth_nondom %>% 
       filter(booth == p_booth) %>% 
-      mutate(leg_text = str_c(booth, ", ", str_replace(party_std, "Australian ", ""), " 2pp")) %>% # eg "Westgarth, Liberal 2pp"
-      select(leg_text, party_std) %>%
-      rbind(tibble(leg_text = "All stations", party_std = "Total")) %>% 
-      distinct()
+      mutate(leg_text = str_c(booth, ",<br>", str_replace(party_std, "Australian ", ""), " 2pp")) %>% # eg "Westgarth, Liberal 2pp"
+      select(party_std, leg_text) %>%
+      rbind(tibble(leg_text = "All polling<br>stations", party_std = "Total")) %>% 
+      distinct() %>% 
+      deframe()
     
     two_pp_by_booth_ggplot <-
       p_two_pp_by_booth_nondom %>% 
+      filter(booth != p_booth) %>% # filter out the selected polling station as it will be added later
       ggplot(aes(x = date, y = votes_sh, shape = party_std, group = booth, text = hov_text, colour = party_std)) +
       geom_line(aes(colour = NULL, shape = NULL), na.rm = TRUE, size = 0.15, colour = "grey", show.legend = FALSE, linetype = "dotted") +
       geom_line(na.rm = TRUE, size = 0.15, colour = "grey", show.legend = FALSE) +
@@ -356,14 +358,14 @@ plot_two_pp_by_booth_nondom <-
       geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey", show.legend = FALSE) +
       scale_y_continuous("2 party preferred share", labels = scales::percent) +
       geom_line(data = p_two_pp_by_booth_nondom %>% filter(booth == p_booth)) +
-      geom_point(data = p_two_pp_by_booth_nondom %>% filter(booth == p_booth), size = 2, show.legend = FALSE) +
+      geom_point(data = p_two_pp_by_booth_nondom %>% filter(booth == p_booth), size = 1, show.legend = FALSE) +
       theme(legend.position = "bottom") +  # This isn't working with plotly
       geom_line(data = p_two_pp_all_booth %>% filter(non_dom_party) %>% mutate(party_std = "Total")) +
-      geom_point(data = p_two_pp_all_booth %>% filter(non_dom_party), colour = "black", size = 2, show.legend = FALSE) +
+      geom_point(data = p_two_pp_all_booth %>% filter(non_dom_party), colour = "black", size = 1, show.legend = FALSE) +
       
       scale_color_manual(name = "Polling station", values = party_colours(),
-                         labels = legend_list$leg_text,
-                         breaks = legend_list$party_std) +
+                         labels = legend_list %>% names(),
+                         breaks = legend_list) +
 
             labs(title = str_c("Two party preferred share by polling station: ", p_booth, " highlighted", sep = ""), x = "") +
       scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
@@ -374,14 +376,14 @@ plot_two_pp_by_booth_nondom <-
     
     two_pp_by_booth_ggplotly$x$data <- 
       two_pp_by_booth_ggplotly$x$data %>% 
-      map(rmv_invalid_leg)
+      map(rmv_invalid_leg, legend_list)
     
-    two_pp_by_booth_ggplotly
+    two_pp_by_booth_ggplotly 
     # two_pp_by_booth_ggplot
 
   }
 
-rmv_invalid_leg <- function(plotly_x) {
+rmv_invalid_leg <- function(plotly_x, .legend_list) {
   # Inpects an x$data list in a plotly object, removes any invalid legend entries and returns a transformed x$data object
   if ("legendgroup" %in% names(plotly_x)) {
     # The list includes a legend group
@@ -390,6 +392,8 @@ rmv_invalid_leg <- function(plotly_x) {
       # Legend group looks invalid
       plotly_x$showlegend <- FALSE
     }
+    
+    plotly_x$name <- str_replace_all(plotly_x$name, .legend_list)
     
   }
   plotly_x
@@ -778,10 +782,13 @@ plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
   votes_win <-
     # Work out the number of votes required to win
     dist_trans %>% 
+    mutate(cand_place = row_number(if_else(vote_rnd == "votes_max", -votes, 0L))) %>% 
+      # rank the candidates
+    mutate(votes_win = (sum(if_else((cand_place <= 2 & vote_rnd == "votes_max"), votes, 0L), na.rm = TRUE) / 2) %>% ceiling()) %>% 
+      # calculate the number of votes in the final distribution
     filter(vote_rnd == "votes_min", !is.na(votes), !str_detect(str_to_lower(cand_party), "(didnt vote)|(informal)")) %>% 
-    mutate(votes_win = sum (if_else(!str_detect(str_to_lower(candidate), "informal"), as.integer(votes), 0L), na.rm = TRUE) / 2) %>% 
     slice(which.min(votes)) %>% 
-    mutate(votes_win_txt = str_c("winning line\n", scales::comma(votes_win)))
+    mutate(votes_win_txt = str_c("winning line\n", scales::comma(votes_win))) 
   
   dist_trans <-
     # Rebuild the transformed distribution data, starting with didn't vote cohort
