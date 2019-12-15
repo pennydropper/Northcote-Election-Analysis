@@ -163,7 +163,8 @@ print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec 
   
   p_votes_by_phys_booth <-
     p_votes_by_phys_booth %>% 
-    mutate(alp_sh = 1 - votes_sh)
+    filter(year == p_elec) %>% 
+    mutate(alp_sh = 1 - votes_sh) 
   
   party2 <-
     p_votes_by_phys_booth %>% 
@@ -178,7 +179,7 @@ print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec 
   
   pal <- colorNumeric(
     palette = pal_spect,
-    domain = p_votes_by_phys_booth$votes_sh_scale)
+    domain = p_votes_by_phys_booth$votes_sh)
   
   leaflet(options = leafletOptions(minZoom = 12,
                                    maxZoom = 16)) %>%
@@ -212,7 +213,7 @@ print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec 
                      labelOptions = labelOptions(permanent = FALSE),
                      color = "black",
                      weight = 1,
-                     fillColor = ~pal(votes_sh_scale),
+                     fillColor = ~pal(votes_sh),
                      fill = TRUE) %>% 
     
     addLegend(position = "topright",
