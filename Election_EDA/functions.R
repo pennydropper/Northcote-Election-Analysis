@@ -51,7 +51,8 @@ retrieve_dfs <- function(p_objs, p_dir = data_dir){
     walk(., ~ assign(., read_rds(str_c(p_dir, str_c(., ".rds", sep = ""), sep = "/")), envir = .GlobalEnv))
 }
 
-# write_dfs(transf_df)
+# write_dfs("two_pp_all_booth", "./Election_EDA/data")
+# getwd()
 
 # Plot distribution share -------------------------------------------------
 
@@ -248,7 +249,7 @@ cre_two_pp_all_booth <- function(p_two_pp_detail = two_pp_detail) {
     ungroup() %>% 
     # complete(party_std, date) %>% 
     group_by(date) %>% 
-    mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+    mutate(votes_sh = votes / sum(if_else(party_std != "Informal", votes, 0L), na.rm = TRUE)) %>% 
     ungroup() %>% 
     mutate(non_dom_party = case_when(
       is.null(party_std) ~ FALSE,
@@ -262,11 +263,29 @@ cre_two_pp_all_booth <- function(p_two_pp_detail = two_pp_detail) {
 
 plot_two_pp_all_booth <- function(p_two_pp_all_booth = two_pp_all_booth) {
   # Plot 2 party preferred for all booths
+  
+  didnt_vote <-
+    p_two_pp_all_booth %>% 
+    group_by(date) %>% 
+    summarise(votes = sum(votes, na.rm = TRUE),
+              votes_count = sum(if_else(party_std != "Informal", votes, 0L), na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(party_std = "Didnt Vote",
+           year = year(date) %>% as.character(),
+           votes = map_dbl(year, ~tot_enrols[[.]]) %>% as.integer() - votes,
+           votes_sh = votes / votes_count,
+           non_dom_party = TRUE,
+           booth = "All booths",
+           hov_text = str_c("Didn't vote: ", scales::percent(votes_sh))) %>% 
+    select(-votes_count) %>% 
+    print()
+  
   two_pp_plot <- 
     p_two_pp_all_booth %>% 
-    ggplot(aes(x = date, y = votes_sh, colour = party_std, shape = party_std)) +
+    bind_rows(didnt_vote) %>% 
+    ggplot(aes(x = date, y = votes_sh, colour = party_std, shape = party_std, text = hov_text, group = party_std)) +
     geom_line(na.rm = TRUE) +
-    geom_point(na.rm = TRUE, aes(text = hov_text)) +
+    geom_point(na.rm = TRUE) +
     geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey") +
     scale_y_continuous("2 party preferred share", labels = scales::percent) +
     scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y") +
