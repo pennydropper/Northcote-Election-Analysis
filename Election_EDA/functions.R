@@ -765,17 +765,22 @@ first_final_votes_with_distn <- function(p_distn = distn, p_year =  "2017") {
     filter(year == p_year) %>% 
     group_by(year, candidate) %>% 
     summarise(votes_min = min(votes, na.rm = TRUE),
-              votes_max = max(votes, na.rm = TRUE)) %>% 
+              votes_max = max(votes, na.rm = TRUE),
+              rounds = n()) %>% 
+    group_by(year) %>% 
+    mutate(cand_rank = min_rank(-votes_max),
+           rounds_rank = min_rank(-rounds),
+           rounds_rank_1 = sum(rounds_rank == 1)) %>% 
     ungroup() %>% 
     left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
-    left_join(two_pp_sum, by = c("year", "candidate")) %>% 
-    mutate(votes_max = coalesce(votes, votes_max),
+    left_join(two_pp_sum, by = c("year", "candidate")) %>%
+    mutate(votes_max = if_else((rounds_rank_1 > 2 & cand_rank <= 2), coalesce(votes, votes_max), votes_max), # accomodate scenarios where distn data stops before last 2 candidates
            votes_redist = votes_max - votes_min,
            hov_text = str_c("1st pref: ", scales::comma(votes_min), ". Pref distn: ", 
                             if_else(is.na(votes_max), "NA", 
                                     str_c(scales::comma(votes_redist), ". Final: ",
                                           scales::comma(votes_max))))) %>% 
-    select(-votes) %>% 
+    select(-votes) %>%
     pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
     mutate(hov_text = str_c(readable_nm(candidate), "<br>", party_std, "<br>", hov_text))
 }
@@ -830,7 +835,7 @@ plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
     filter(year == p_year) %>% 
     mutate(candidate = "Didnt vote",
            cand_party = "Didnt vote",
-           vote_rnd = "votes_min") %>% 
+           vote_rnd = "votes_min") %>%
     select(year, candidate, cand_party, party_std, hov_text, vote_rnd, votes) %>% 
     # Add the informal votes
       bind_rows(informal_votes(p_year)) %>% 
