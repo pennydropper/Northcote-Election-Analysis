@@ -22,6 +22,7 @@ transf_df <- c("two_pp_detail",
                "nrthct_plgon",
                "party_std", #
                "booth_addr_lst",
+               "northcote_stn",
                "cands_std",
                "first_pref",
                "tot_enrols"
@@ -51,7 +52,7 @@ retrieve_dfs <- function(p_objs, p_dir = data_dir){
     walk(., ~ assign(., read_rds(str_c(p_dir, str_c(., ".rds", sep = ""), sep = "/")), envir = .GlobalEnv))
 }
 
-# write_dfs("two_pp_all_booth", "./Election_EDA/data")
+# write_dfs("votes_by_phys_booth", "./Election_EDA/data")
 # getwd()
 
 # Plot distribution share -------------------------------------------------
@@ -165,7 +166,9 @@ print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec 
   p_votes_by_phys_booth <-
     p_votes_by_phys_booth %>% 
     filter(year == p_elec) %>% 
-    mutate(alp_sh = 1 - votes_sh) 
+    mutate(alp_sh = 1 - votes_sh) %>% 
+    mutate(hov_text = str_c(booth, "<br>", booth_addr, "<br>Votes: ", votes, "<br>2pp to ", party_std, ": ", scales::percent(votes_sh) ))
+    
   
   party2 <-
     p_votes_by_phys_booth %>% 
@@ -355,7 +358,9 @@ plot_two_pp_by_booth_nondom <-
     
     p_two_pp_by_booth_nondom <-
       p_two_pp_by_booth_nondom %>% 
-      mutate(non_dom_party = TRUE)  
+      filter(votes > 0) %>% 
+      mutate(non_dom_party = TRUE,
+             hov_text = str_c(hov_text, " of ", scales::comma(votes / votes_sh)))  
     
     # Create list of entries for the legend
     # note that this doesn't appear to work for ggplotly
@@ -645,7 +650,7 @@ cre_cand_list <- function(p_cands_std = cands_std) {
     # arrange(-year_num)
     arrange(candidate) %>% 
     mutate(cand_full = str_c(readable_nm(candidate), ": ", parties, " (", years, ")")) %>% 
-    select(candidate, cand_full) %>% 
+    select(cand_full, candidate) %>% 
     deframe()
 }
 
@@ -670,9 +675,18 @@ plot_pref_distn_sel_cand <- function(p_candidate = "BISHOP, Robert", p_pref_w_pa
 }
 
 cre_votes_by_phys_booth <- function(p_votes_by_booth_all = votes_by_booth_all, p_booth_addr_lst = booth_addr_lst) {
+  
+  booth_addr_dates <-
+    booth_addr_lst %>% 
+    mutate(year_fr = coalesce(year_fr, "1999"),
+           year_to = coalesce(year_to, "2999"))
+  
   p_votes_by_booth_all %>% 
     filter(booth != "All") %>% 
-    inner_join(p_booth_addr_lst, by = "booth") %>% 
+    fuzzyjoin::fuzzy_join(booth_addr_dates, 
+                          by = c("booth" = "booth", "year" = "year_fr", "year" = "year_to"),
+                          match_fun = list(`==`, `>=`, `<=`)) %>% 
+    rename(booth = booth.x) %>% 
     mutate(hov_text = str_c(booth, "<br>", booth_addr, "<br>Votes: ", votes, "<br>2pp to ", party_std, ": ", scales::percent(votes_sh) )) %>% 
     group_by(year) %>% 
     mutate(votes_sh_scale = scales::rescale(votes_sh)) %>% # Scale votes for colour coding on chart
