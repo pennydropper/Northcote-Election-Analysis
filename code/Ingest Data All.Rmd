@@ -103,7 +103,7 @@ for (i in seq_along(tot_enrols)) {
     read_html(tot_enrol_url) %>% 
     html_nodes(tot_enrol_css_sels) %>% 
     html_text() %>%
-    discard(., ~ !str_detect(., "Total\\s*Enrolment")) %>% 
+    keep(., ~ str_detect(., "Total\\s*Enrolment")) %>% 
     map_chr(1) %>% # Take the first occurance
     # str_replace_all(., "\r\n", "") %>% 
     str_extract(., "\\d+") %>% # Assumes that total enrolments is the first number in this table
