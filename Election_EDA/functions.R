@@ -755,10 +755,10 @@ first_final_votes_no_distn <- function(p_year = "2002") {
            votes_max_pool = sum(votes_max, na.rm = TRUE),
            hov_text = str_c("1st pref: ", scales::comma(votes_min), " (", scales::percent(votes_min / votes_min_sum), ")",
                             ". Pref distn: ", if_else(is.na(votes_max), "NA", 
-                                    str_c(scales::comma(votes_redist), ". Final: ",
+                                    str_c(scales::comma(votes_redist), "<br>. Final: ",
                                           scales::comma(votes_max), " (", scales::percent(votes_max / votes_max_pool), ")")))) %>% 
     pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
-    mutate(hov_text = str_c(readable_nm(candidate), "<br>", coalesce(party_std, "NA"), "<br>", hov_text),
+    mutate(hov_text = str_c(readable_nm(candidate), ", ", coalesce(party_std, "NA"), "<br>", hov_text),
            votes = as.integer(votes))
 }
 
@@ -783,11 +783,11 @@ first_final_votes_with_distn <- function(p_distn = distn, p_year =  "2017") {
            votes_redist = votes_max - votes_min,
            hov_text = str_c("1st pref: ", scales::comma(votes_min), " (", scales::percent(votes_min / votes_min_sum), ")",
                             ". Pref distn: ", if_else(is.na(votes_max), "NA", 
-                                    str_c(scales::comma(votes_redist), ". Final: ", 
+                                    str_c(scales::comma(votes_redist), "<br>. Final: ", 
                                           scales::comma(votes_max), " (", scales::percent(votes_max / votes_max_pool), ")")))) %>% 
     select(-votes) %>%
     pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
-    mutate(hov_text = str_c(readable_nm(candidate), "<br>", party_std, "<br>", hov_text))
+    mutate(hov_text = str_c(readable_nm(candidate), ", ", party_std, "<br>", hov_text))
 }
 
 informal_votes <- function(p_year = "2002") {

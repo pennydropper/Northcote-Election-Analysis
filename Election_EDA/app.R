@@ -41,6 +41,49 @@ ui <- fluidPage(
       # Votes distribution by party
       # Votes distribution by candidate
       
+      tabPanel( "Home",
+                # Home page
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      width = 1
+                   ),
+                   
+                   mainPanel(
+                      fluidRow(
+                         h2("Northcote Election Results Home Page"),
+                         br(),
+                         h3("Tab overview and key questions:"),
+                         p(strong("First and Final Votes: "), " Who were the candidates and how much did they win by?"),
+                         p(strong("First Preference Votes:  "), "How have each party's votes trended since 1999?"),
+                         p(strong("2 Party Preferred Share:  "), "How has the ALP's 2-party preferred share trended since 1999? ",
+                           "What propotion of enrolled voters didn't vote?  What proportion of voters voted informally?"),
+                         p(strong("Votes distribution FROM party:  "), 
+                           "How have voters for different parties distributed their preferences since 2010?"),
+                         p(strong("Votes distribution TO party:  "), 
+                           "From which other parties did the leading parties receive preferences?"),
+                         p(strong("Votes distribution FROM candidate:  "),
+                           "Which parties received each candidate's preferences?"),
+                         p(strong("Polling station map:  "),
+                           "Where are Northcote's polling stations and what is their relative size?  
+                           Which neighbourhoods support which party?"),
+                         p(strong("Polling station sizes:  "), 
+                           "What are the relative sizes of polling stations?  How many votes are placed outside of polling stations?"),
+                         p(strong("2 Party Pref by Polling Station:  "), 
+                           "Which polling stations support which parties and what is the trend since 1999?"),
+                         p(strong("Total votes by Polling Station:  "),
+                           "What is the size of each polling station relative to other polling station and what are the trends? 
+                           What are the trends for the non-physical polling stations, such as Early Voting?"),
+                         p(),
+                         p(strong("Note"), " that each chart responds to mouse-overs and clicks.")
+                         
+                      )
+                   )
+                )
+                
+                
+      ),
+      
       tabPanel( "First and Final Votes",
                 # Total first and final votes for given year
                 

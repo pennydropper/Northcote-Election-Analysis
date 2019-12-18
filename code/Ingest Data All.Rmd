@@ -85,7 +85,7 @@ tot_enrols <- vector("integer", length(years)) %>%
 for (i in seq_along(tot_enrols)) {
   # Step through each year for an election
   
-  # i = 6
+  # i = 1
   # yr = "1999"
   yr <- years[[i]]
   tot_enrol_url <- str_c(domain, yr, "/", electorate_nm, "District.html", sep = "")
