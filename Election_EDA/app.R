@@ -48,12 +48,16 @@ ui <- fluidPage(
                    sidebarPanel(
                       selectInput("first_final_votes_sel_year",
                                   "Select year to display for chart:",
-                                  choices = elec_dates$elec_ID %>% keep(~. >= "2010") %>% sort(decreasing = TRUE)),
+                                  choices = elec_dates$elec_ID %>% sort(decreasing = TRUE)),
                       width = 2
                    ),
                    
                    mainPanel(
-                      plotlyOutput("votes_by_cand_plot", height = 700)
+                      plotlyOutput("votes_by_cand_plot", height = 700),
+                      p(),
+                      p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.  
+                        From the 2010 election, distributed preference votes available for all candidates.")
                    )
                 )
       ),
@@ -71,8 +75,10 @@ ui <- fluidPage(
                 
                 fluidRow(
                    # h2(textOutput("plot_booth_votes_bar_heading")),  # Something wacky about these plots
-                   plotlyOutput("two_pp_all_booth_plot", height = 700)
-                   # h2("Hello world")
+                   plotlyOutput("two_pp_all_booth_plot", height = 700),
+                   p(),
+                   p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
                 )
                 
       ),
@@ -81,7 +87,10 @@ ui <- fluidPage(
                 # Two party preferred votes
                 
                 fluidRow(
-                   plotlyOutput("two_pp_vote_ts_plot", height = 700)
+                   plotlyOutput("two_pp_vote_ts_plot", height = 700),
+                   p(),
+                   p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
                 )
       ),
       
@@ -154,7 +163,10 @@ ui <- fluidPage(
             mainPanel(
                h2(textOutput("poll_map_heading")),
                p(),
-               leafletOutput("booth_map", height = 700)
+               leafletOutput("booth_map", height = 600),
+               p(),
+               p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
             )
          )
       ),
@@ -174,7 +186,10 @@ ui <- fluidPage(
                    mainPanel(
                       h2(textOutput("plot_booth_votes_bar_heading")),
                       p(),
-                      plotlyOutput("plot_booth_votes_bar_plot", height = 700)
+                      plotlyOutput("plot_booth_votes_bar_plot", height = 600),
+                      p(),
+                      p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
                    )
                 )
       ),
@@ -193,7 +208,10 @@ ui <- fluidPage(
                    
                    # Show a plot of the generated distribution
                    mainPanel(
-                      plotlyOutput("two_pp_by_booth_nondom_plot", height = 700)
+                      plotlyOutput("two_pp_by_booth_nondom_plot", height = 700),
+                      p(),
+                      p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
                    )
                 )
       ),
@@ -205,7 +223,7 @@ ui <- fluidPage(
                    sidebarPanel(
                       selectInput("votes_by_booth_sel_booth",
                                   "Select polling station to highlight on chart:",
-                                  choices = two_pp$booth %>% unique() %>% sort()),
+                                  choices = two_pp$booth %>% unique() %>% sort() %>% discard(., ~str_detect(., "(Total)|(^All)"))),
                       width = 2
                    ),
                    
@@ -278,6 +296,10 @@ server <- function(input, output) {
    
    output$pref_distn_sel_cand_plot <- renderPlotly({
       plot_pref_distn_sel_cand(input$votes_distn_cand_sel, pref_w_party)  
+   })
+   
+   output$votes_distn_cand_val <- renderPrint({
+      input$votes_distn_cand_sel
    })
    
    }
