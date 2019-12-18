@@ -46,7 +46,7 @@ two_cand_pref_2 <- "TCPbyVC"
 # e.g. https://www.vec.vic.gov.au/Results/State2018/TCPbyVotingCentreNorthcoteDistrict.html
 # e.g. https://www.vec.vic.gov.au/Results/state1999TCPbyVCNorthcoteDistrict.html
 
-booth_addr_flnm <- "booth_addr.csv"
+booth_addr_flnm <- "booth_addr_upd.csv" #"booth_addr.csv"
 
 # Set up polygon names for Northcote District map
 shp_dir <- "./data/SDM565161/ll_gda94/shape/state_assembly_2013/northcote-4000/VMADMIN"
@@ -380,6 +380,26 @@ booth_addr_lst <- read_csv(str_c(data_dir, booth_addr_flnm, sep = "/"),
   print()
 
 ```
+
+```{r booths_shane}
+(booths_shane <-
+  readRDS(str_c(data_dir, "/", "Northcote Booth Locations.rds")) %>% 
+  filter(str_detect(ElectionID, "Vic")) %>% 
+  # head(1) %>% 
+  # Northcote	Santa Maria College, 50 Separation Street, Northcote	145.0018	-37.77028
+  rename(lat = LocLatitude, lon = LocLongitude, booth = EditBoothStrp) %>% 
+  mutate(year = str_sub(ElectionID, 1, 4),
+         booth_addr = str_c(Location %>% str_trim(), PremisesAddress1 %>% str_trim(), Suburb %>% str_to_title(), sep = ", ") %>% str_trim(),
+         booth = str_trim(booth),
+         lon = round(lon * 10^5) / 10^5,
+         lat = round(lat * 10^5) / 10^5) %>% 
+  group_by(booth, booth_addr) %>% # booth_addr, lon, lat) %>% 
+  summarise(lon = max(lon),
+            lat = max(lat),
+            year_fr = min(year),
+            year_to = max(year)))
+```
+
 
 # Tidy up Candidate Party list
 
