@@ -746,14 +746,17 @@ first_final_votes_no_distn <- function(p_year = "2002") {
     filter(year == p_year, candidate != "informal") %>% 
     group_by(year, candidate) %>% 
     summarise(votes_min = sum(votes, na.rm = TRUE)) %>% 
+    group_by(year) %>% 
+    mutate(votes_min_sum = sum(votes_min)) %>% 
     ungroup() %>% 
     left_join(two_pp_sum %>% dplyr::rename(votes_max = votes), by = c("year", "candidate")) %>% 
     left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
     mutate(votes_redist = coalesce(as.double(votes_max), votes_min) - votes_min,
-           hov_text = str_c("1st pref: ", scales::comma(votes_min), ". Pref distn: ", 
-                            if_else(is.na(votes_max), "NA", 
+           votes_max_pool = sum(votes_max, na.rm = TRUE),
+           hov_text = str_c("1st pref: ", scales::comma(votes_min), " (", scales::percent(votes_min / votes_min_sum), ")",
+                            ". Pref distn: ", if_else(is.na(votes_max), "NA", 
                                     str_c(scales::comma(votes_redist), ". Final: ",
-                                          scales::comma(votes_max))))) %>% 
+                                          scales::comma(votes_max), " (", scales::percent(votes_max / votes_max_pool), ")")))) %>% 
     pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
     mutate(hov_text = str_c(readable_nm(candidate), "<br>", coalesce(party_std, "NA"), "<br>", hov_text),
            votes = as.integer(votes))
@@ -770,16 +773,18 @@ first_final_votes_with_distn <- function(p_distn = distn, p_year =  "2017") {
     group_by(year) %>% 
     mutate(cand_rank = min_rank(-votes_max),
            rounds_rank = min_rank(-rounds),
-           rounds_rank_1 = sum(rounds_rank == 1)) %>% 
+           rounds_rank_1 = sum(rounds_rank == 1),
+           votes_min_sum = sum(votes_min, na.rm = TRUE)) %>% 
     ungroup() %>% 
     left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
     left_join(two_pp_sum, by = c("year", "candidate")) %>%
     mutate(votes_max = if_else((rounds_rank_1 > 2 & cand_rank <= 2), coalesce(votes, votes_max), votes_max), # accomodate scenarios where distn data stops before last 2 candidates
+           votes_max_pool = sum(if_else(cand_rank <= 2, votes_max, 0L), na.rm = TRUE),
            votes_redist = votes_max - votes_min,
-           hov_text = str_c("1st pref: ", scales::comma(votes_min), ". Pref distn: ", 
-                            if_else(is.na(votes_max), "NA", 
-                                    str_c(scales::comma(votes_redist), ". Final: ",
-                                          scales::comma(votes_max))))) %>% 
+           hov_text = str_c("1st pref: ", scales::comma(votes_min), " (", scales::percent(votes_min / votes_min_sum), ")",
+                            ". Pref distn: ", if_else(is.na(votes_max), "NA", 
+                                    str_c(scales::comma(votes_redist), ". Final: ", 
+                                          scales::comma(votes_max), " (", scales::percent(votes_max / votes_max_pool), ")")))) %>% 
     select(-votes) %>%
     pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
     mutate(hov_text = str_c(readable_nm(candidate), "<br>", party_std, "<br>", hov_text))
