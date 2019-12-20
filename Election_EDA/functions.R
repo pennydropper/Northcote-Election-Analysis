@@ -809,19 +809,19 @@ plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
   
   # p_year = "2002"
   
-  dist_trans <-
-    if (p_year >= "2010") {
-      # Calculate the final votes after distributions and the first preferences
-      
+  
+  if (p_year >= "2010") {
+    # Calculate the final votes after distributions and the first preferences
+    dist_trans <-
       first_final_votes_with_distn(p_distn, p_year)
-      
-    } else {
-      # Prior to 2010, can only provide final votes for top 2 candidates and first pref for everyone
-      # Note that in 2002, the Greens candidate had the 2nd highest number of votes but 2pp went to Liberals
-      
+    
+  } else {
+    # Prior to 2010, can only provide final votes for top 2 candidates and first pref for everyone
+    # Note that in 2002, the Greens candidate had the 2nd highest number of votes but 2pp went to Liberals
+    dist_trans <-
       first_final_votes_no_distn(p_year)
-      
-    }
+    
+  }
   
   votes_win <-
     # Work out the number of votes required to win
@@ -850,6 +850,20 @@ plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
     mutate(candidate = candidate %>% fct_reorder(., votes, sum, na.rm = TRUE) %>% 
              fct_relevel("Didnt vote", "Informal"))
 
+  cand_elim_margin <-
+    distn %>% 
+    filter(year == p_year) %>% 
+    group_by(year, round) %>% 
+    arrange(round, votes) %>% 
+    mutate(rev_rank = min_rank(-votes),
+           votes_next = lead(votes),
+           votes_behind = votes_next - votes,
+           hov_text = str_c("Eliminated when ", votes_behind, " behind next-placed ", readable_nm(lead(candidate))),
+           cands_rem = n()) %>% 
+    ungroup() %>% 
+    # filter(round >= 9) %>% 
+    filter((rev_rank - cands_rem == 0L) & rev_rank > 2) # Don't count second place getter
+  
   votes_by_cand_ggp <- 
     dist_trans %>%  
     filter(vote_rnd != "votes_max") %>% 
@@ -860,6 +874,7 @@ plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
              aes(alpha = if_else(vote_rnd == "votes_min", 1, .8) %>% factor())) +
     geom_text(data = votes_win, aes(x = candidate, y = votes_win, label = votes_win_txt, hjust = "left"), 
               inherit.aes = FALSE, size = 3.5, colour = "black", alpha = 0.5) +
+    
     labs(title = str_c("First preference and final votes in ", p_year), x = "") +
     scale_fill_manual("Party", values = party_colours()) +
     scale_colour_manual("Party", values = party_colours()) +
@@ -867,7 +882,16 @@ plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
     theme(legend.position = "none") +
     coord_flip()
   
+  if (nrow(cand_elim_margin) > 0) {
+    votes_by_cand_ggp <-
+      votes_by_cand_ggp +
+      geom_point(data = cand_elim_margin, aes(y = votes_next, fill = NA), colour = "grey") +
+      geom_segment(data = cand_elim_margin, aes(yend = votes_next, y = votes, fill = NA, xend = candidate),
+                   colour = "grey", na.rm = TRUE, linetype = "dotted`")
+  }
+  
   ggplotly(votes_by_cand_ggp, tooltip = "text")
+  # votes_by_cand_ggp
 
 }
 
