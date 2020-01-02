@@ -93,22 +93,26 @@ ui <-
             tabItem( "first_and_final_votes",
                      # Total first and final votes for given year
                      
-                     sidebarLayout(
-                        sidebarPanel(
+                     
+                     fluidRow(
+                        box(
                            selectInput("first_final_votes_sel_year",
                                        "Select year to display for chart:",
                                        choices = elec_dates$elec_ID %>% sort(decreasing = TRUE)),
                            width = 2
-                        ),
-                        
-                        mainPanel(
-                           plotlyOutput("votes_by_cand_plot", height = 700),
-                           p(),
-                           p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        )
+                     ),
+                     
+                        fluidRow(
+                           box(
+                              plotlyOutput("votes_by_cand_plot"),
+                              p(),
+                              p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
                         From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.  
                         From the 2010 election, distributed preference votes available for all candidates.")
+                           )
                         )
-                     )
+                     
             ),
             
             tabItem( "first_pref_votes",
