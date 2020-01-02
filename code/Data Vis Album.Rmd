@@ -46,7 +46,7 @@ ggplotly(bc_booths)
 
 ```{r}
 
-plot_booth_votes_bar("2018", votes_by_booth_all)
+plot_booth_votes_bar("1999", votes_by_booth_all)
 
 ```
 
@@ -75,6 +75,10 @@ plot_two_pp_all_booth()
 plot_2pp_vote_ts(two_pp_all_booth)
 ```
 
+```{r}
+
+```
+
 
 ```{r}
 two_pp %>% 
@@ -92,8 +96,16 @@ two_pp_by_booth_nondom <-
 ```
 
 ```{r}
-plot_two_pp_by_booth_nondom(p_booth = "Northcote")
+plot_two_pp_by_booth_nondom(p_booth = "Westgarth")
 ```
+
+```{r}
+two_pp_by_booth_nondom %>% 
+      semi_join(booth_addr_lst, by = "booth") %>% 
+      mutate(non_dom_party = TRUE) %>% 
+  count(booth)
+```
+
 
 # Timeline of total votes
 
@@ -112,7 +124,7 @@ plot_votes_by_booth(votes_by_booth_all, p_lump_n = 8)
 ```
 ```{r votes_by_elect_booth_ggp}
 
-plot_votes_by_booth_all(votes_by_booth_all, "Westgarth") 
+plot_votes_by_booth_all(votes_by_booth_all, "Fairfield") 
 
 ```
 
@@ -128,8 +140,13 @@ plot_party_votes_by_elec(party_votes_by_elec)
 
 ```
 
+```{r plot_votes_top3_ts}
+plot_votes_top3_ts()
+```
+
+
 ```{r plot_votes_by_cand}
-plot_votes_by_cand("2018", distn)
+plot_votes_by_cand("2010", distn)
 ```
 
 
@@ -149,6 +166,9 @@ plot_distn_party_prefs("Liberal Democrats", pref_w_party, elec_dates)
 
 ```
 
+```{r, fig.width=7, fig.height=35}
+plot_distn_party_prefs_rec(c("Australian Greens", "Australian Labor Party"))
+```
 
 
 ## By candidate (shows party and years of being candidate after name)
@@ -181,6 +201,6 @@ votes_by_phys_booth <-
 
 ```{r}
 
-print_booth_map(votes_by_phys_booth, "2017")
+print_booth_map(votes_by_phys_booth, "2014")
 ```
 

@@ -22,7 +22,10 @@ transf_df <- c("two_pp_detail",
                "nrthct_plgon",
                "party_std", #
                "booth_addr_lst",
-               "cands_std"
+               "northcote_stn",
+               "cands_std",
+               "first_pref",
+               "tot_enrols"
 )
 
 objects_core <- c("booth_addr_lst",
@@ -42,7 +45,6 @@ write_dfs <- function(p_objs, p_dir = data_dir) {
     walk(., ~ write_rds(get(.), str_c(p_dir, str_c(., ".rds", sep = ""), sep = "/"), "none"))
 }
 
-# getwd()
 
 retrieve_dfs <- function(p_objs, p_dir = data_dir){
   # Retrieve objects specified in list from rds file
@@ -50,7 +52,8 @@ retrieve_dfs <- function(p_objs, p_dir = data_dir){
     walk(., ~ assign(., read_rds(str_c(p_dir, str_c(., ".rds", sep = ""), sep = "/")), envir = .GlobalEnv))
 }
 
-# write_dfs(transf_df)
+# write_dfs("votes_by_phys_booth", "./Election_EDA/data")
+# getwd()
 
 # Plot distribution share -------------------------------------------------
 
@@ -154,17 +157,25 @@ party_colours <- function() {
     select(party_std, party_colour) %>% 
     distinct() %>% 
     deframe() %>% 
-    append(c("Informal" = "grey"))
+    append(c("Informal" = "grey", "Total" = "black", "white" = "white", "Didnt Vote" = "brown"))
 }
 
 print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec = "2018") {
   # Print leaflet map of polling booths
   
+  p_votes_by_phys_booth <-
+    p_votes_by_phys_booth %>% 
+    filter(year == p_elec) %>% 
+    mutate(alp_sh = 1 - votes_sh) %>% 
+    mutate(hov_text = str_c(booth, "<br>", booth_addr, "<br>Votes: ", votes, "<br>2pp to ", party_std, ": ", scales::percent(votes_sh) ))
+    
+  
   party2 <-
     p_votes_by_phys_booth %>% 
     filter(year == p_elec) %>% 
     pull(party_std) %>% 
-    head(1)
+    head(1) %>% 
+    str_replace(., "Australian ", "") # Trim Australian Greens to Greens
 
   pal_spect <- "RdYlGn"  # Assume that Greens are the 2nd party
   
@@ -172,7 +183,7 @@ print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec 
   
   pal <- colorNumeric(
     palette = pal_spect,
-    domain = p_votes_by_phys_booth$votes_sh_scale)
+    domain = p_votes_by_phys_booth$votes_sh)
   
   leaflet(options = leafletOptions(minZoom = 12,
                                    maxZoom = 16)) %>%
@@ -206,12 +217,16 @@ print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec 
                      labelOptions = labelOptions(permanent = FALSE),
                      color = "black",
                      weight = 1,
-                     fillColor = ~pal(votes_sh_scale),
+                     fillColor = ~pal(votes_sh),
                      fill = TRUE) %>% 
     
-    addLegend(title = str_c(party2, " vs ALP"), pal = pal, values = p_votes_by_phys_booth$votes_sh,
+    addLegend(position = "topright",
+              title = str_c(party2, " 2pp<br> vs ALP"), 
+              pal = pal, 
+              values = p_votes_by_phys_booth$votes_sh,
               labels = palette(),
-              position = "bottomright")
+              # opacity = .5,
+              labFormat = scales::percent)
   
 }
 
@@ -237,7 +252,7 @@ cre_two_pp_all_booth <- function(p_two_pp_detail = two_pp_detail) {
     ungroup() %>% 
     # complete(party_std, date) %>% 
     group_by(date) %>% 
-    mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+    mutate(votes_sh = votes / sum(if_else(party_std != "Informal", votes, 0L), na.rm = TRUE)) %>% 
     ungroup() %>% 
     mutate(non_dom_party = case_when(
       is.null(party_std) ~ FALSE,
@@ -251,11 +266,29 @@ cre_two_pp_all_booth <- function(p_two_pp_detail = two_pp_detail) {
 
 plot_two_pp_all_booth <- function(p_two_pp_all_booth = two_pp_all_booth) {
   # Plot 2 party preferred for all booths
+  
+  didnt_vote <-
+    p_two_pp_all_booth %>% 
+    group_by(date) %>% 
+    summarise(votes = sum(votes, na.rm = TRUE),
+              votes_count = sum(if_else(party_std != "Informal", votes, 0L), na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(party_std = "Didnt Vote",
+           year = year(date) %>% as.character(),
+           votes = map_dbl(year, ~tot_enrols[[.]]) %>% as.integer() - votes,
+           votes_sh = votes / votes_count,
+           non_dom_party = TRUE,
+           booth = "All booths",
+           hov_text = str_c("Didn't vote: ", scales::percent(votes_sh))) %>% 
+    select(-votes_count) %>% 
+    print()
+  
   two_pp_plot <- 
     p_two_pp_all_booth %>% 
-    ggplot(aes(x = date, y = votes_sh, colour = party_std, shape = party_std)) +
+    bind_rows(didnt_vote) %>% 
+    ggplot(aes(x = date, y = votes_sh, colour = party_std, shape = party_std, text = hov_text, group = party_std)) +
     geom_line(na.rm = TRUE) +
-    geom_point(na.rm = TRUE, aes(text = hov_text)) +
+    geom_point(na.rm = TRUE) +
     geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey") +
     scale_y_continuous("2 party preferred share", labels = scales::percent) +
     scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y") +
@@ -265,6 +298,43 @@ plot_two_pp_all_booth <- function(p_two_pp_all_booth = two_pp_all_booth) {
   
   ggplotly(two_pp_plot, tooltip = "text")
 }
+
+plot_2pp_vote_ts <- function(p_two_pp_all_booth = two_pp_all_booth) {
+  
+  two_pp_total <-
+    p_two_pp_all_booth %>% 
+    group_by(date, booth) %>% 
+    summarise(votes = sum(votes, na.rm = TRUE),
+              party_std = "Total") %>% 
+    ungroup() %>% 
+    mutate(hov_text = str_c("Total: ", votes))
+  
+  didnt_vote_total <- 
+    merge_tot_votes_enrolled() %>% 
+    select(date, booth, votes, party_std, hov_text)
+  
+  two_pp_plot <-
+    p_two_pp_all_booth %>% 
+    mutate(hov_text = str_c(party_std, "<br>Votes: ", votes, "<br>Share: ", scales::percent(votes_sh))) %>% 
+    
+    ggplot(aes(x = date, y = votes, colour = party_std, shape = party_std, text = hov_text, group = party_std)) +
+    geom_line(na.rm = TRUE) +
+    geom_point(na.rm = TRUE, size = 0.5) +
+    scale_y_log10("2 party preferred votes", labels = scales::comma) +
+    scale_color_manual("Party", values = party_colours()) +
+    scale_shape_discrete("Party") +
+    
+    geom_line(data = two_pp_total) +
+    geom_point(data = two_pp_total, size = 0.5) +
+    geom_line(data = didnt_vote_total) +
+    geom_point(data = didnt_vote_total, size = 0.5) +
+    
+    labs(title = "Two party preferred votes", x = "") +
+    scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
+  
+  ggplotly(two_pp_plot, tooltip = "text")
+  
+}  
 
 cre_two_pp_by_booth_nondom <- function(p_two_pp_detail = two_pp_detail) {
   # tibble with the non-dominant party
@@ -283,31 +353,77 @@ cre_two_pp_by_booth_nondom <- function(p_two_pp_detail = two_pp_detail) {
 }
 
 plot_two_pp_by_booth_nondom <- 
-  function(p_two_pp_by_booth_nondom = two_pp_by_booth_nondom, p_booth = "Westgarth") {
+  function(p_two_pp_by_booth_nondom = two_pp_by_booth_nondom, p_booth = "Westgarth", p_two_pp_all_booth = two_pp_all_booth) {
     # Plot 2 party preferred share by booth
+    
+    p_two_pp_by_booth_nondom <-
+      p_two_pp_by_booth_nondom %>% 
+      filter(votes > 0) %>% 
+      mutate(non_dom_party = TRUE,
+             hov_text = str_c(hov_text, " of ", scales::comma(votes / votes_sh)))  
+    
+    # Create list of entries for the legend
+    # note that this doesn't appear to work for ggplotly
+    legend_list <-
+      p_two_pp_by_booth_nondom %>% 
+      filter(booth == p_booth) %>% 
+      mutate(leg_text = str_c(booth, ",<br>", str_replace(party_std, "Australian ", ""), " 2pp")) %>% # eg "Westgarth, Liberal 2pp"
+      select(party_std, leg_text) %>%
+      rbind(tibble(leg_text = "All polling<br>stations", party_std = "Total")) %>% 
+      distinct() %>% 
+      deframe()
+    
     two_pp_by_booth_ggplot <-
       p_two_pp_by_booth_nondom %>% 
-      semi_join(booth_addr_lst, by = "booth") %>% 
-      # mutate(booth = factor(booth)) %>% 
-      ggplot(aes(x = date, y = votes_sh, shape = party_std, group = booth)) +
-      geom_line(na.rm = TRUE, colour = "grey", aes(group = booth, shape = party_std)) +
-      geom_point(na.rm = TRUE, colour = "grey", size = 0.5, aes(text = hov_text)) +
-      geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey") +
+      filter(booth != p_booth) %>% # filter out the selected polling station as it will be added later
+      ggplot(aes(x = date, y = votes_sh, shape = party_std, group = booth, text = hov_text, colour = party_std)) +
+      geom_line(aes(colour = NULL, shape = NULL), na.rm = TRUE, size = 0.15, colour = "grey", show.legend = FALSE, linetype = "dotted") +
+      geom_line(na.rm = TRUE, size = 0.15, colour = "grey", show.legend = FALSE) +
+      geom_point(na.rm = TRUE, size = 0.5, colour = "grey", show.legend = FALSE) +
+      geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey", show.legend = FALSE) +
       scale_y_continuous("2 party preferred share", labels = scales::percent) +
-      # scale_shape_manual("Booth", values = 97:111) +
-      # scale_shape_identity() +
-      geom_line(data = two_pp_by_booth_nondom %>% filter(booth == p_booth), colour = "black") +
-      geom_point(data = two_pp_by_booth_nondom %>% filter(booth == p_booth), aes(text = hov_text, colour = party_std)) +
-      scale_color_manual("Party", values = party_colours()) +
-      scale_shape_discrete("Party") +
-      geom_line(data = two_pp_all_booth %>% filter(non_dom_party), colour = "blue") +
-      geom_point(data = two_pp_all_booth %>% filter(non_dom_party), aes(text = hov_text, colour = party_std)) +
-      labs(title = str_c("Two party preferred share by booth: ", p_booth, " highlighted", sep = ""), x = "") +
+      geom_line(data = p_two_pp_by_booth_nondom %>% filter(booth == p_booth)) +
+      geom_point(data = p_two_pp_by_booth_nondom %>% filter(booth == p_booth), size = 1, show.legend = FALSE) +
+      theme(legend.position = "bottom") +  # This isn't working with plotly
+      geom_line(data = p_two_pp_all_booth %>% filter(non_dom_party) %>% mutate(party_std = "Total")) +
+      geom_point(data = p_two_pp_all_booth %>% filter(non_dom_party), colour = "black", size = 1, show.legend = FALSE) +
+      
+      scale_color_manual(name = "Polling station", values = party_colours(),
+                         labels = legend_list %>% names(),
+                         breaks = legend_list) +
+
+            labs(title = str_c("Two party preferred share by polling station: ", p_booth, " highlighted", sep = ""), x = "") +
       scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
     
     
-    ggplotly(two_pp_by_booth_ggplot, tooltip = "hov_text")
+    two_pp_by_booth_ggplotly <-
+      ggplotly(two_pp_by_booth_ggplot, tooltip = "hov_text")
+    
+    two_pp_by_booth_ggplotly$x$data <- 
+      two_pp_by_booth_ggplotly$x$data %>% 
+      map(rmv_invalid_leg, legend_list)
+    
+    two_pp_by_booth_ggplotly 
+    # two_pp_by_booth_ggplot
+
   }
+
+rmv_invalid_leg <- function(plotly_x, .legend_list) {
+  # Inpects an x$data list in a plotly object, removes any invalid legend entries and returns a transformed x$data object
+  if ("legendgroup" %in% names(plotly_x)) {
+    # The list includes a legend group
+    
+    if (str_detect(plotly_x$legendgroup, "^\\(")) {
+      # Legend group looks invalid
+      plotly_x$showlegend <- FALSE
+    }
+    
+    plotly_x$name <- str_replace_all(plotly_x$name, .legend_list)
+    
+  }
+  plotly_x
+  
+}
 
 cre_votes_by_booth_elec <- function(p_first_pref = first_pref, p_elec_dates = elec_dates, p_two_pp_by_booth_nondom = two_pp_by_booth_nondom) {
   p_first_pref %>% 
@@ -360,23 +476,38 @@ plot_votes_by_booth <- function(p_votes_by_booth_all = votes_by_booth_all, p_lum
 }
 
 plot_votes_by_booth_all <- function(p_votes_by_booth_all = votes_by_booth_all, p_booth_sel = "Westgarth") {
-  votes_by_elect_booth_ggp <-
+
+  votes_by_booth_prep <-
     p_votes_by_booth_all %>% 
     filter(booth != "All") %>% 
     group_by(date) %>% 
     mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
     ungroup %>% 
-    mutate(hov_text = str_c(booth, ": ", scales::comma(votes), "<br>Share of total: ", scales::percent(votes_sh))) %>% 
+    mutate(hov_text = str_c(booth, ": ", scales::comma(votes), "<br>Share of total: ", scales::percent(votes_sh))) 
     
-    ggplot(aes(x = date, y = votes)) +
+    # filter(booth == "Fairfield")
+  
+  votes_by_elect_booth_ggp <-
+    votes_by_booth_prep %>% 
+    
+    ggplot(aes(x = date, y = votes, text = hov_text, group = booth)) +
     # scale_y_log10("Votes (log scale)", labels = scales::comma) +
     scale_y_continuous("Votes", labels = scales::comma) +
-    expand_limits(y = 0) +
-    geom_point(aes(text = hov_text), size = 0.25) +
-    geom_line(colour = "grey", size = 0.25, aes(group = booth)) +
-    geom_line(data = votes_by_booth_all %>% filter(booth == p_booth_sel), colour = "red", size = 0.5) +
-    labs(title = str_c("Total votes by booth: ", p_booth_sel, " highlighted"), x = "") +
-    scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
+    # expand_limits(y = 0) +
+    geom_point(size = 0.25, colour = "black") +
+    geom_line(colour = "grey", size = 0.25) +
+    geom_point(data = votes_by_booth_prep %>% filter(booth == p_booth_sel), colour = "black", size = 1) +
+    geom_line(data = votes_by_booth_prep %>% filter(booth == p_booth_sel), aes(colour = party_std), size = .75) +
+    labs(title = str_c("Total votes by polling station: ", p_booth_sel, " highlighted"), x = "") +
+    scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y") +
+    
+    scale_color_manual("Party", values = party_colours()) +
+    theme(legend.position = "none") +
+
+    geom_text(data = votes_by_booth_prep %>% filter(booth == p_booth_sel, date == max(votes_by_booth_prep$date, na.rm = TRUE)), 
+              aes(label = booth), nudge_x = 500, vjust = c("left"), check_overlap = TRUE) +
+    expand_limits(x = max(votes_by_booth_prep$date, na.rm = TRUE) + 1000,
+                  y = 0)
   
   ggplotly(votes_by_elect_booth_ggp, tooltip = "text")
 }
@@ -391,25 +522,47 @@ cre_party_votes_by_elec <- function(p_first_pref = first_pref, p_elec_dates = el
     left_join(party_std, by = "cand_party")
 }
 
+merge_tot_votes_enrolled <- function(p_votes_by_booth_all = votes_by_booth_all, p_tot_enrols = tot_enrols) {
+  # Merge total votes per election with total enrolled
+  
+  p_votes_by_booth_all %>% 
+    filter(booth == "All") %>%   # Total votes
+    select(-votes_sh) %>% 
+    mutate(tot_enrol = map_dbl(year, ~p_tot_enrols[[.]]),
+           party_std = "Didnt Vote",
+           votes = tot_enrol - votes,
+           hov_text = str_c("Didn't vote<br>", scales::comma(votes)),
+           booth = "All booths")
+}
+
 plot_party_votes_by_elec <- function(p_party_votes_by_elec = party_votes_by_elec){
+  
+  didnt_vote_total <-
+    merge_tot_votes_enrolled() %>% 
+    select(date, booth, votes, party_std, hov_text)
+  
   party_votes_by_elec_ggp <-
     p_party_votes_by_elec %>% 
     group_by(date) %>% 
-    mutate(votes_sh = votes / sum(votes, na.rm = TRUE),
-           party_std = coalesce(party_std, "Informal") %>% fct_relevel("Informal", after = Inf),
+    mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(party_std = coalesce(party_std, "Informal") %>% fct_relevel("Informal", after = Inf),
            hov_text = str_c(party_std, "<br>Votes: ", scales::comma(votes), " (", scales::percent(votes_sh), ")")) %>% 
-    ungroup %>% 
     complete(date, party_std) %>% 
     
-    ggplot(aes(x = date, y = votes)) +
-    geom_point(aes(text = hov_text, colour = party_std, fill = party_std), size = 1) +
-    geom_line(aes(group = party_std, colour = party_std), size = 0.25, na.rm = TRUE, linetype = "solid") +
+    ggplot(aes(x = date, y = votes, group = party_std, text = hov_text, colour = party_std, fill = party_std)) +
+    geom_point(size = 1) +
+    geom_line(size = 0.25, na.rm = TRUE, linetype = "solid") +
     scale_fill_manual("Party", values = party_colours()) +
     scale_colour_manual("Party", values = party_colours()) +
-    scale_y_log10(label = scales::comma) +
+    # scale_y_log10(label = scales::comma) +
     labs(title = "Total first preference votes by party", x = "") +
     expand_limits(y = 0) +
-    geom_line(data = votes_by_booth_all %>% filter(booth == "All"), colour = "grey", size = 0.25, aes(group = booth, text = "Total")) +
+    # geom_line(data = votes_by_booth_all %>% filter(booth == "All"), colour = "grey", size = 0.25, aes(group = booth)) +
+    
+    geom_point(data = didnt_vote_total, size = 1) +
+    geom_line(data = didnt_vote_total, size = 0.25, na.rm = TRUE, linetype = "solid") +
+
     scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
   
   ggplotly(party_votes_by_elec_ggp, tooltip = "text")
@@ -449,6 +602,36 @@ plot_distn_party_prefs <- function(p_party_from = "Liberal", p_pref_w_party = pr
   ggplotly(pref_w_party_ggp, tooltip = "text")
 }
 
+plot_distn_party_prefs_rec <- function(p_party_to = c("Australian Greens", "Australian Labor Party"),
+                                       p_pref_w_party = pref_w_party, p_elec_dates = elec_dates) {
+  pref_w_party_ggp <-
+    p_pref_w_party %>% 
+    # complete(year, party_std.from) %>% 
+    filter(party_std.to %in% p_party_to) %>% 
+    filter(party_std.to != party_std.from) %>% 
+    # Ignore preferences from Independents to Independents
+    group_by(year, party_std.from, from_cand, party_std.to) %>%
+    summarise(votes = sum(votes, na.rm = TRUE)) %>%
+    group_by(year) %>% 
+    mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+    ungroup %>% 
+    mutate(hovtext = str_c(party_std.from, " (", from_cand, ")<br>", votes, " votes. (", scales::percent(votes_sh), ")<br>",
+                           "distributed to ", party_std.to)) %>%
+    # filter(year == "2017") %>% arrange(party_std.to) %>% 
+    full_join(p_elec_dates %>% select(year = elec_ID) %>% filter(year >= "2010"), by = "year") %>% 
+    mutate(party_std.to = if_else(is.na(party_std.to), p_party_to[[1]], party_std.to),
+           party_std.from = party_std.from %>% abbreviate(minlength = 8) %>% fct_reorder(votes, .fun = sum, .desc = TRUE)) %>%
+    
+    ggplot(aes(x = year, y = votes, fill = party_std.to, text = hovtext)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    scale_fill_manual("Party", values = party_colours()) +
+    facet_grid(party_std.from ~ ., scales = "fixed") +
+    
+    labs(title = str_c("Distribution of ", p_party_to, " votes by election"), x = "", y = "votes distributed")
+  
+  ggplotly(pref_w_party_ggp, tooltip = "text")
+}
+
 readable_nm <- function(nm) {
   # Rewrite the candidate name to something more readable
   str_c(str_replace(nm, "^.*, ", ""), " ", str_replace(nm, ", .*", "") %>% str_to_title()) %>% 
@@ -467,7 +650,7 @@ cre_cand_list <- function(p_cands_std = cands_std) {
     # arrange(-year_num)
     arrange(candidate) %>% 
     mutate(cand_full = str_c(readable_nm(candidate), ": ", parties, " (", years, ")")) %>% 
-    select(candidate, cand_full) %>% 
+    select(cand_full, candidate) %>% 
     deframe()
 }
 
@@ -477,11 +660,14 @@ plot_pref_distn_sel_cand <- function(p_candidate = "BISHOP, Robert", p_pref_w_pa
     p_pref_w_party %>% 
     filter(from_cand == p_candidate) %>% 
     mutate(hovtext = str_c(party_std.to, " (", to_cand, ")<br>", votes, " votes. (", scales::percent(votes / votes_sum), ")")) %>% 
+    full_join(elec_dates %>% select(year = elec_ID) %>% filter(year >= "2010"), by = "year") %>%
     # glimpse()
     
-    ggplot(aes(x = year, y = votes)) +
-    geom_bar(aes(fill = party_std.to, text = hovtext), stat = "identity", position = "dodge") +
-    scale_fill_manual("Party", values = party_colours()) +
+    ggplot(aes(x = year, y = votes, fill = party_std.to, text = hovtext)) +
+    geom_bar(stat = "identity", position = "dodge", na.rm = TRUE) +
+    scale_fill_manual("Party", values = party_colours(),
+                      limits = p_pref_w_party %>% filter(from_cand == p_candidate) %>% pull(party_std.to) %>% unique(),
+                      na.translate = TRUE) +
     
     labs(title = str_c("Distribution of ", readable_nm(p_candidate), " preferences by election"), x = "", y = "votes")  
   
@@ -489,43 +675,24 @@ plot_pref_distn_sel_cand <- function(p_candidate = "BISHOP, Robert", p_pref_w_pa
 }
 
 cre_votes_by_phys_booth <- function(p_votes_by_booth_all = votes_by_booth_all, p_booth_addr_lst = booth_addr_lst) {
+  
+  booth_addr_dates <-
+    booth_addr_lst %>% 
+    mutate(year_fr = coalesce(year_fr, "1999"),
+           year_to = coalesce(year_to, "2999"))
+  
   p_votes_by_booth_all %>% 
     filter(booth != "All") %>% 
-    inner_join(p_booth_addr_lst, by = "booth") %>% 
+    fuzzyjoin::fuzzy_join(booth_addr_dates, 
+                          by = c("booth" = "booth", "year" = "year_fr", "year" = "year_to"),
+                          match_fun = list(`==`, `>=`, `<=`)) %>% 
+    rename(booth = booth.x) %>% 
     mutate(hov_text = str_c(booth, "<br>", booth_addr, "<br>Votes: ", votes, "<br>2pp to ", party_std, ": ", scales::percent(votes_sh) )) %>% 
     group_by(year) %>% 
     mutate(votes_sh_scale = scales::rescale(votes_sh)) %>% # Scale votes for colour coding on chart
     ungroup
 }
 
-plot_2pp_vote_ts <- function(p_two_pp_all_booth = two_pp_all_booth) {
-  
-  two_pp_total <-
-    p_two_pp_all_booth %>% 
-    group_by(date) %>% 
-    summarise(votes = sum(votes, na.rm = TRUE)) %>% 
-    ungroup() %>% 
-    mutate(hov_text = str_c("Total: ", votes))
-  
-  two_pp_plot <-
-    two_pp_all_booth %>% 
-    mutate(hov_text = str_c(party_std, "<br>Votes: ", votes, "<br>Share: ", scales::percent(votes_sh))) %>% 
-    
-    ggplot(aes(x = date, y = votes)) +
-    geom_line(na.rm = TRUE, aes(colour = party_std)) +
-    geom_point(na.rm = TRUE, aes(colour = party_std, shape = party_std, text = hov_text)) +
-    scale_y_log10("2 party preferred votes", labels = scales::comma) +
-    scale_color_manual("Party", values = party_colours()) +
-    scale_shape_discrete("Party") +
-    
-    geom_line(data = two_pp_total, colour = "black") +
-    geom_point(data = two_pp_total, colour = "black", aes(text = hov_text)) +
-    
-    labs(title = "Two party preferred votes", x = "") +
-    scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
-  
-  ggplotly(two_pp_plot, tooltip = "text")  
-}  
 
 plot_booth_votes_bar <- function(p_year = "2018", p_votes_by_booth_all = votes_by_booth_all){
   
@@ -556,7 +723,7 @@ plot_booth_votes_bar <- function(p_year = "2018", p_votes_by_booth_all = votes_b
     
     ggplot(aes(x = booth, y = votes)) +
     geom_bar(aes(fill = votes_sh, text = hov_text), stat = "identity") +
-    scale_fill_gradientn("2pp share away from ALP", 
+    scale_fill_gradientn(str_c(str_replace(party2, "Australian ", ""), " 2pp share\nvs ALP"), 
                          colours = c(party_colours()["Australian Labor Party"], "grey", party_colours()[party2]),
                          limits = c(floor(party2_sh_rng[1] * 10) / 10, ceiling(party2_sh_rng[2] * 10) / 10),
                          labels = scales::percent) +
@@ -573,43 +740,159 @@ cre_two_pp_sum <- function(p_two_pp = two_pp) {
     ungroup()
 }
 
-plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
-  # Plots bar chart of 1st pref votes and final preference votes
-  
-  dist_trans <-
-    p_distn %>% 
+first_final_votes_no_distn <- function(p_year = "2002") {
+  # Summarise candidates first and final votes without access to distribution data
+  first_pref %>% 
+    filter(year == p_year, candidate != "informal") %>% 
+    group_by(year, candidate) %>% 
+    summarise(votes_min = sum(votes, na.rm = TRUE)) %>% 
+    group_by(year) %>% 
+    mutate(votes_min_sum = sum(votes_min)) %>% 
+    ungroup() %>% 
+    left_join(two_pp_sum %>% dplyr::rename(votes_max = votes), by = c("year", "candidate")) %>% 
+    left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
+    mutate(votes_redist = coalesce(as.double(votes_max), votes_min) - votes_min,
+           votes_max_pool = sum(votes_max, na.rm = TRUE),
+           hov_text = str_c("1st pref: ", scales::comma(votes_min), " (", scales::percent(votes_min / votes_min_sum), ")",
+                            ". Pref distn: ", if_else(is.na(votes_max), "NA", 
+                                    str_c(scales::comma(votes_redist), "<br>. Final: ",
+                                          scales::comma(votes_max), " (", scales::percent(votes_max / votes_max_pool), ")")))) %>% 
+    pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
+    mutate(hov_text = str_c(readable_nm(candidate), ", ", coalesce(party_std, "NA"), "<br>", hov_text),
+           votes = as.integer(votes))
+}
+
+first_final_votes_with_distn <- function(p_distn = distn, p_year =  "2017") {
+  # Summarise candidates first and final votes with access to richer distribution data
+  p_distn %>%
     filter(year == p_year) %>% 
     group_by(year, candidate) %>% 
     summarise(votes_min = min(votes, na.rm = TRUE),
-              votes_max = max(votes, na.rm = TRUE)) %>% 
+              votes_max = max(votes, na.rm = TRUE),
+              rounds = n()) %>% 
+    group_by(year) %>% 
+    mutate(cand_rank = min_rank(-votes_max),
+           rounds_rank = min_rank(-rounds),
+           rounds_rank_1 = sum(rounds_rank == 1),
+           votes_min_sum = sum(votes_min, na.rm = TRUE)) %>% 
     ungroup() %>% 
-    left_join(cands_std %>% select(-cand_party, -party_colour), by = c("candidate", "year")) %>% 
-    left_join(two_pp_sum, by = c("year", "candidate")) %>% 
-    mutate(votes_max = coalesce(votes, votes_max),
-           candidate = candidate %>% fct_reorder(votes_max)) %>% 
-    select(-votes) %>% 
-    pivot_longer(cols = c(votes_min, votes_max), names_to = "vote_rnd", values_to = "votes") %>% 
-    mutate(hov_text = str_c(readable_nm(candidate), "<br>", party_std, "<br>Votes: ", votes),
-           vote_rnd = fct_rev(vote_rnd))
+    left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
+    left_join(two_pp_sum, by = c("year", "candidate")) %>%
+    mutate(votes_max = if_else((rounds_rank_1 > 2 & cand_rank <= 2), coalesce(votes, votes_max), votes_max), # accomodate scenarios where distn data stops before last 2 candidates
+           votes_max_pool = sum(if_else(cand_rank <= 2, votes_max, 0L), na.rm = TRUE),
+           votes_redist = votes_max - votes_min,
+           hov_text = str_c("1st pref: ", scales::comma(votes_min), " (", scales::percent(votes_min / votes_min_sum), ")",
+                            ". Pref distn: ", if_else(is.na(votes_max), "NA", 
+                                    str_c(scales::comma(votes_redist), "<br>. Final: ", 
+                                          scales::comma(votes_max), " (", scales::percent(votes_max / votes_max_pool), ")")))) %>% 
+    select(-votes) %>%
+    pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
+    mutate(hov_text = str_c(readable_nm(candidate), ", ", party_std, "<br>", hov_text))
+}
 
-    votes_win <-
-    dist_trans %>% 
-    summarise(votes_win = sum(if_else(vote_rnd == "votes_min", votes, 0L)) / 2) %>% 
-    pull(votes_win) %>% 
-    .[1]
+informal_votes <- function(p_year = "2002") {
+  # Extract the informal votes from the first_pref data
+  first_pref %>% 
+    filter(year == p_year, candidate == "informal") %>% 
+    group_by(year, candidate) %>% 
+    summarise(votes = sum(votes, na.rm = TRUE),
+              cand_party = NA_character_,
+              party_std = "white",
+              hov_text = str_c("Informal votes: ", scales::comma(votes))) %>% 
+    ungroup() %>% 
+    mutate(candidate = str_to_title(candidate),
+           vote_rnd = "votes_min")
+}
+
+plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
+  # Plots bar chart of 1st pref votes and final preference votes
   
+  # p_year = "2002"
+  
+  
+  if (p_year >= "2010") {
+    # Calculate the final votes after distributions and the first preferences
+    dist_trans <-
+      first_final_votes_with_distn(p_distn, p_year)
+    
+  } else {
+    # Prior to 2010, can only provide final votes for top 2 candidates and first pref for everyone
+    # Note that in 2002, the Greens candidate had the 2nd highest number of votes but 2pp went to Liberals
+    dist_trans <-
+      first_final_votes_no_distn(p_year)
+    
+  }
+  
+  votes_win <-
+    # Work out the number of votes required to win
+    dist_trans %>% 
+    mutate(cand_place = row_number(if_else(vote_rnd == "votes_max", -votes, 0L))) %>% 
+      # rank the candidates
+    mutate(votes_win = (sum(if_else((cand_place <= 2 & vote_rnd == "votes_max"), votes, 0L), na.rm = TRUE) / 2) %>% ceiling()) %>% 
+      # calculate the number of votes in the final distribution
+    filter(vote_rnd == "votes_min", !is.na(votes), !str_detect(str_to_lower(cand_party), "(didnt vote)|(informal)")) %>% 
+    slice(which.min(votes)) %>% 
+    mutate(votes_win_txt = str_c("winning line\n", scales::comma(votes_win))) 
+  
+  dist_trans <-
+    # Rebuild the transformed distribution data, starting with didn't vote cohort
+    merge_tot_votes_enrolled() %>% 
+    filter(year == p_year) %>% 
+    mutate(candidate = "Didnt vote",
+           cand_party = "Didnt vote",
+           vote_rnd = "votes_min") %>%
+    select(year, candidate, cand_party, party_std, hov_text, vote_rnd, votes) %>% 
+    # Add the informal votes
+      bind_rows(informal_votes(p_year)) %>% 
+    # Add back the candidate votes
+    bind_rows(dist_trans) %>% 
+    # Set the candidate order
+    mutate(candidate = candidate %>% fct_reorder(., votes, sum, na.rm = TRUE) %>% 
+             fct_relevel("Didnt vote", "Informal"))
+
+  cand_elim_margin <-
+    distn %>% 
+    filter(year == p_year) %>% 
+    group_by(year, round) %>% 
+    arrange(round, votes) %>% 
+    mutate(rev_rank = min_rank(votes),
+           votes_next = lead(votes),
+           votes_behind = votes_next - votes,
+           hov_text = str_c("Eliminated in round ", round, " when ", votes_behind, " behind next-placed ", readable_nm(lead(candidate))),
+           cands_rem = n()) %>% 
+    ungroup() %>% 
+    # filter(round >= 9) %>% 
+    filter(rev_rank == 1L & cands_rem > 2) # Don't count second place getter
   
   votes_by_cand_ggp <- 
-    dist_trans %>%   
-    ggplot(aes(x = candidate, y = votes)) +
-    geom_hline(yintercept = votes_win, linetype = "dashed", colour = "grey") +
-    geom_bar(aes(fill = vote_rnd, text = hov_text), stat = "identity", position = "dodge") +
-    scale_fill_discrete(name = "Votes", label = c("votes_min" = "1st Pref", "votes_max" = "After distn")) +
-    labs(title = str_c("First preference and final votes in ", p_year)) +
+    dist_trans %>%  
+    filter(vote_rnd != "votes_max") %>% 
+
+    ggplot(aes(x = candidate, y = votes, text = hov_text, fill = party_std)) +
+    geom_hline(yintercept = votes_win$votes_win[1], linetype = "dashed", colour = "grey") +
+    geom_bar(stat = "identity", position = "stack", size = .2, na.rm = TRUE, colour = "grey",
+             aes(alpha = if_else(vote_rnd == "votes_min", 1, .8) %>% factor())) +
+    geom_text(data = votes_win, aes(x = candidate, y = votes_win, label = votes_win_txt, hjust = "left"), 
+              inherit.aes = FALSE, size = 3.5, colour = "black", alpha = 0.5) +
+    
+    labs(title = str_c("First preference and final votes in ", p_year), x = "") +
+    scale_fill_manual("Party", values = party_colours()) +
+    scale_colour_manual("Party", values = party_colours()) +
+    scale_y_continuous(labels = scales::comma) +
+    theme(legend.position = "none") +
     coord_flip()
   
-  ggplotly(votes_by_cand_ggp, tooltip = "text")
+  if (nrow(cand_elim_margin) > 0) {
+    votes_by_cand_ggp <-
+      votes_by_cand_ggp +
+      geom_point(data = cand_elim_margin, aes(y = votes_next, fill = NA), colour = "grey") +
+      geom_segment(data = cand_elim_margin, aes(yend = votes_next, y = votes, fill = NA, xend = candidate),
+                   colour = "grey", na.rm = TRUE, linetype = "dotted`")
+  }
   
+  ggplotly(votes_by_cand_ggp, tooltip = "text")
+  # votes_by_cand_ggp
+
 }
 
 cre_distn_gap <- function(p_two_pp_sum = two_pp_sum, p_distn = distn, p_pref = pref) {
@@ -635,4 +918,36 @@ cre_distn_gap <- function(p_two_pp_sum = two_pp_sum, p_distn = distn, p_pref = p
            votes_sum = sum(votes)) %>% 
     ungroup()
 
+}
+
+plot_votes_top3_ts <- function(p_distn = distn) {
+  # Plot timeseries of votes for the top 3 parties in each election
+  # Useful for assessing which group of supporters failed to vote in 2017
+  dist_w_3rem_ggp <-
+    p_distn %>% 
+    group_by(year, round) %>% 
+    mutate(cands_rem = n()) %>% 
+    ungroup() %>% 
+    filter(cands_rem == 3) %>% 
+    left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
+    inner_join(elec_dates, by = c("year" = "elec_ID")) %>% 
+    select(date, year, votes, party_std) %>% 
+    bind_rows(merge_tot_votes_enrolled() %>% select(date, year, votes, party_std)) %>% 
+    # Add didn't vote numbers
+    
+    filter(year >= "2010") %>% # Full distribution data only available from 2010 election
+    
+    ggplot(aes(x = date, y = votes, group = party_std, colour = party_std)) +
+    geom_point(size = 1) +
+    geom_line(size = 0.25, na.rm = TRUE, linetype = "solid") +
+    scale_colour_manual("Party", values = party_colours()) +
+    labs(title = "Allocated distribution with 3 candidates remaining", x = "") +
+    expand_limits(y = 0) +
+    
+    scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y") +
+    scale_y_continuous(breaks = seq(0, 20000, 2000), labels = scales::comma)
+  
+  ggplotly(dist_w_3rem_ggp)
+  # dist_w_3rem_ggp
+  
 }

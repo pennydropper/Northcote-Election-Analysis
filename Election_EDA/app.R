@@ -21,14 +21,16 @@ source("./functions.R")
 
 retrieve_dfs(transf_df, "./data")
 
+
 # Define UI for application that draws a histogram
 ui <- fluidPage(
-   
+   # theme = "bootstrap.css",
    # Application title
    titlePanel("Northcote Election Results - Explore the data!"),
    
    # Set of tabs with reporting options
-   tabsetPanel(
+   navlistPanel(
+      widths = c(2, 10),
       # Northcote map with year selector
       # Bar chart of polling stations for a single year
       # Two party preferred share by booth
@@ -39,94 +41,66 @@ ui <- fluidPage(
       # Votes distribution by party
       # Votes distribution by candidate
       
-      tabPanel( "Booth map",
-         # Northcote map with year selector
-         
-         sidebarLayout(
-            sidebarPanel(
-               selectInput("map_year",
-                           "Select year to display on map:",
-                           choices = elec_dates$elec_ID)
-            ),
-            
-            # Show a plot of the generated distribution
-            mainPanel(
-               h2(textOutput("poll_map_heading")),
-               p(),
-               leafletOutput("booth_map", height = 700)
-            )
-         )
-      ),
-      
-      tabPanel( "Polling station sizes",
-                # Bar chart of polling stations for a single year
+      tabPanel( "Home",
+                # Home page
                 
                 sidebarLayout(
                    sidebarPanel(
-                      selectInput("plot_booth_votes_bar_year",
+                      width = 1
+                   ),
+                   
+                   mainPanel(
+                      fluidRow(
+                         h2("Northcote Election Results Home Page"),
+                         br(),
+                         h3("Tab overview and key questions:"),
+                         p(strong("First and Final Votes: "), " Who were the candidates and how much did they win by?"),
+                         p(strong("First Preference Votes:  "), "How have each party's votes trended since 1999?"),
+                         p(strong("2 Party Preferred Share:  "), "How has the ALP's 2-party preferred share trended since 1999? ",
+                           "What propotion of enrolled voters didn't vote?  What proportion of voters voted informally?"),
+                         p(strong("Votes distribution FROM party:  "), 
+                           "How have voters for different parties distributed their preferences since 2010?"),
+                         p(strong("Votes distribution TO party:  "), 
+                           "From which other parties did the leading parties receive preferences?"),
+                         p(strong("Votes distribution FROM candidate:  "),
+                           "Which parties received each candidate's preferences?"),
+                         p(strong("Polling station map:  "),
+                           "Where are Northcote's polling stations and what is their relative size?  
+                           Which neighbourhoods support which party?"),
+                         p(strong("Polling station sizes:  "), 
+                           "What are the relative sizes of polling stations?  How many votes are placed outside of polling stations?"),
+                         p(strong("2 Party Pref by Polling Station:  "), 
+                           "Which polling stations support which parties and what is the trend since 1999?"),
+                         p(strong("Total votes by Polling Station:  "),
+                           "What is the size of each polling station relative to other polling station and what are the trends? 
+                           What are the trends for the non-physical polling stations, such as Early Voting?"),
+                         p(),
+                         p(strong("Note"), " that each chart responds to mouse-overs and clicks.")
+                         
+                      )
+                   )
+                )
+                
+                
+      ),
+      
+      tabPanel( "First and Final Votes",
+                # Total first and final votes for given year
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      selectInput("first_final_votes_sel_year",
                                   "Select year to display for chart:",
-                                  choices = elec_dates$elec_ID)
+                                  choices = elec_dates$elec_ID %>% sort(decreasing = TRUE)),
+                      width = 2
                    ),
                    
-                   # Show a plot of the generated distribution
                    mainPanel(
-                      h2(textOutput("plot_booth_votes_bar_heading")),
+                      plotlyOutput("votes_by_cand_plot", height = 700),
                       p(),
-                      plotlyOutput("plot_booth_votes_bar_plot", height = 700)
-                   )
-                )
-      ),
-      
-      tabPanel( "2 Party Pref by Booth",
-                # Two party preferred share by booth
-                
-                sidebarLayout(
-                   sidebarPanel(
-                      selectInput("two_pp_by_booth_nondom_plot_booth",
-                                  "Select booth to highlight:",
-                                  choices = two_pp$booth %>% unique() %>% sort())
-                   ),
-                   
-                   # Show a plot of the generated distribution
-                   mainPanel(
-                      plotlyOutput("two_pp_by_booth_nondom_plot", height = 700)
-                   )
-                )
-      ),
-      
-      tabPanel( "2 Party Pref Share",
-                # Two party preferred share
-
-                fluidRow(
-                   # h2(textOutput("plot_booth_votes_bar_heading")),  # Something wacky about these plots
-                   plotlyOutput("two_pp_all_booth_plot")
-                )
-               
-      ),
-      
-      tabPanel( "2 Party Pref Votes",
-                # Two party preferred votes
-                
-                fluidRow(
-                   plotlyOutput("two_pp_vote_ts_plot", height = 700)
-                )
-      ),
-      
-      tabPanel( "Total votes by booth",
-                # Total votes by booth
-                
-                sidebarLayout(
-                   sidebarPanel(
-                      selectInput("votes_by_booth_sel_booth",
-                                  "Select booth to highlight on chart:",
-                                  choices = two_pp$booth %>% unique() %>% sort())
-                   ),
-                   
-                   # Show a plot of the generated distribution
-                   mainPanel(
-                      # h2(textOutput("plot_booth_votes_bar_heading")),
-                      # p(),
-                      plotlyOutput("votes_by_booth_all_plot", height = 700)
+                      p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.  
+                        From the 2010 election, distributed preference votes available for all candidates.")
                    )
                 )
       ),
@@ -139,30 +113,39 @@ ui <- fluidPage(
                 )
       ),
       
-      tabPanel( "First and Final Votes",
-                # Total first and final votes for given year
+      tabPanel( "2 Party Preferred Share",
+                # Two party preferred share
                 
-                sidebarLayout(
-                   sidebarPanel(
-                      selectInput("first_final_votes_sel_year",
-                                  "Select year to display for chart:",
-                                  choices = elec_dates$elec_ID %>% keep(~. >= "2010") %>% sort(decreasing = TRUE))
-                   ),
-                   
-                   mainPanel(
-                      plotlyOutput("votes_by_cand_plot", height = 700)
-                   )
+                fluidRow(
+                   # h2(textOutput("plot_booth_votes_bar_heading")),  # Something wacky about these plots
+                   plotlyOutput("two_pp_all_booth_plot", height = 700),
+                   p(),
+                   p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
+                )
+                
+      ),
+      
+      tabPanel( "2 Party Preferred Votes",
+                # Two party preferred votes
+                
+                fluidRow(
+                   plotlyOutput("two_pp_vote_ts_plot", height = 700),
+                   p(),
+                   p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
                 )
       ),
       
-      tabPanel( "Votes distn by party",
+      tabPanel( "Votes distribution FROM party",
                 # Votes distribution by party
                 
                 sidebarLayout(
                    sidebarPanel(
                       selectInput("votes_distn_party_sel",
                                   "Select party to display for chart:",
-                                  choices = pref_w_party$party_std.from %>% unique() %>% sort())
+                                  choices = pref_w_party$party_std.from %>% unique() %>% sort()),
+                      width = 2
                    ),
                    
                    mainPanel(
@@ -171,21 +154,131 @@ ui <- fluidPage(
                 )
       ),
       
-      tabPanel( "Votes distn by candidate",
+      tabPanel( "Votes distribution TO party",
+                # Votes distribution to party
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      checkboxGroupInput("votes_distn_party_to_sel",
+                                  "Select party to display for chart:",
+                                  choices = pref_w_party$party_std.to %>% unique() %>% sort(),
+                                  selected = c("Australian Labor Party", "Australian Greens")
+                                  ),
+                      width = 2
+                      
+                   ),
+                   
+                   mainPanel(
+                      plotlyOutput("distn_party_prefs_to_plot", height = 1000, width = "auto")
+                   )
+                )
+      ),
+      
+      tabPanel( "Votes distribution FROM candidate",
                 # Votes distribution by candidate
                 
                 sidebarLayout(
                    sidebarPanel(
                       selectInput("votes_distn_cand_sel",
                                   "Select candidate to display for chart:",
-                                  choices = pref_w_party$from_cand %>% unique() %>% sort())
+                                  choices = pref_w_party$from_cand %>% unique() %>% sort()),
+                      width = 2
                    ),
                    
                    mainPanel(
                       plotlyOutput("pref_distn_sel_cand_plot", height = 700)
                    )
                 )
+      ),
+      
+      tabPanel( "Polling station map",
+         # Northcote map with year selector
+         
+         sidebarLayout(
+            sidebarPanel(
+               selectInput("map_year",
+                           "Select year to display on map:",
+                           choices = elec_dates$elec_ID),
+               width = 2
+            ),
+            
+            # Show a plot of the generated distribution
+            mainPanel(
+               h2(textOutput("poll_map_heading")),
+               p(),
+               leafletOutput("booth_map", height = 600),
+               p(),
+               p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
+            )
+         )
+      ),
+      
+      tabPanel( "Polling station sizes",
+                # Bar chart of polling stations for a single year
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      selectInput("plot_booth_votes_bar_year",
+                                  "Select year to display for chart:",
+                                  choices = elec_dates$elec_ID),
+                      width = 2
+                   ),
+                   
+                   # Show a plot of the generated distribution
+                   mainPanel(
+                      h2(textOutput("plot_booth_votes_bar_heading")),
+                      p(),
+                      plotlyOutput("plot_booth_votes_bar_plot", height = 600),
+                      p(),
+                      p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
+                   )
+                )
+      ),
+      
+      tabPanel( "2 Party Pref by Polling Station",
+                # Two party preferred share by booth
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      selectInput("two_pp_by_booth_nondom_plot_booth",
+                                  "Select polling station to highlight:",
+                                  choices = two_pp_by_booth_nondom %>% filter(votes > 0) %>%
+                                     pull(booth) %>% unique() %>% sort()),
+                      width = 2
+                   ),
+                   
+                   # Show a plot of the generated distribution
+                   mainPanel(
+                      plotlyOutput("two_pp_by_booth_nondom_plot", height = 700),
+                      p(),
+                      p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
+                   )
+                )
+      ),
+      
+      tabPanel( "Total votes by polling station",
+                # Total votes by booth
+                
+                sidebarLayout(
+                   sidebarPanel(
+                      selectInput("votes_by_booth_sel_booth",
+                                  "Select polling station to highlight on chart:",
+                                  choices = two_pp$booth %>% unique() %>% sort() %>% discard(., ~str_detect(., "(Total)|(^All)"))),
+                      width = 2
+                   ),
+                   
+                   # Show a plot of the generated distribution
+                   mainPanel(
+                      # h2(textOutput("plot_booth_votes_bar_heading")),
+                      # p(),
+                      plotlyOutput("votes_by_booth_all_plot", height = 700)
+                   )
+                )
       )
+      
       
    )
 )
@@ -200,7 +293,7 @@ server <- function(input, output) {
    })
    
    output$poll_map_heading <- renderText({
-      str_c("Where people voted in ", input$map_year)
+      str_c("Where people voted and how neighbourhoods voted in ", input$map_year)
    })
    
    output$plot_booth_votes_bar_plot <- renderPlotly({
@@ -208,7 +301,7 @@ server <- function(input, output) {
    })
    
    output$plot_booth_votes_bar_heading <- renderText({
-      str_c("Relative sizes of polling stations in ", input$plot_booth_votes_bar_year)
+      str_c("Number of voters at each polling station in ", input$plot_booth_votes_bar_year)
    })
    
    output$two_pp_by_booth_nondom_plot <- renderPlotly({
@@ -240,8 +333,16 @@ server <- function(input, output) {
       plot_distn_party_prefs(input$votes_distn_party_sel, pref_w_party, elec_dates)  
    })
    
+   output$distn_party_prefs_to_plot <- renderPlotly({
+      plot_distn_party_prefs_rec(input$votes_distn_party_to_sel, pref_w_party, elec_dates)  
+   })
+   
    output$pref_distn_sel_cand_plot <- renderPlotly({
       plot_pref_distn_sel_cand(input$votes_distn_cand_sel, pref_w_party)  
+   })
+   
+   output$votes_distn_cand_val <- renderPrint({
+      input$votes_distn_cand_sel
    })
    
    }
