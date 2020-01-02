@@ -951,3 +951,33 @@ plot_votes_top3_ts <- function(p_distn = distn) {
   # dist_w_3rem_ggp
   
 }
+
+plot_distn_sankey <- function(p_year = "2010", p_distn = distn ) {
+  # Plot Sankey diagram of distributions for specified year
+  
+  cand_rank <-
+    p_distn %>% 
+    filter(year == p_year) %>% 
+    group_by(year, candidate) %>%
+    summarise(votes_max = max(votes),
+              votes_min = min(votes)) %>% 
+    mutate(cand_rank = row_number(-votes_max) - 1) %>% 
+    ungroup() %>% 
+    arrange(cand_rank) %>% 
+    print()
+  
+  vote_distn <-
+    pref %>% 
+    filter(year == p_year) %>% 
+    inner_join(cand_rank, by = c("year", "from_cand" = "candidate")) %>% 
+    inner_join(cand_rank, by = c("year", "to_cand" = "candidate"), suffix = c(".from", ".to")) %>% 
+    select(year, from_cand, cand_rank.from, to_cand, cand_rank.to, votes, everything()) %>% 
+    print()
+  
+  sankeyNetwork(Links = vote_distn %>% as.data.frame(), Nodes = cand_rank %>% as.data.frame(),
+                Source = "cand_rank.from", Target = "cand_rank.to",
+                Value = "votes", NodeID = "candidate",
+                fontSize= 12, nodeWidth = 30,
+                fontFamily = "ariel")
+  
+}
