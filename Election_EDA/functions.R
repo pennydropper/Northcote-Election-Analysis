@@ -855,14 +855,14 @@ plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
     filter(year == p_year) %>% 
     group_by(year, round) %>% 
     arrange(round, votes) %>% 
-    mutate(rev_rank = min_rank(-votes),
+    mutate(rev_rank = min_rank(votes),
            votes_next = lead(votes),
            votes_behind = votes_next - votes,
-           hov_text = str_c("Eliminated when ", votes_behind, " behind next-placed ", readable_nm(lead(candidate))),
+           hov_text = str_c("Eliminated in round ", round, " when ", votes_behind, " behind next-placed ", readable_nm(lead(candidate))),
            cands_rem = n()) %>% 
     ungroup() %>% 
     # filter(round >= 9) %>% 
-    filter((rev_rank - cands_rem == 0L) & rev_rank > 2) # Don't count second place getter
+    filter(rev_rank == 1L & cands_rem > 2) # Don't count second place getter
   
   votes_by_cand_ggp <- 
     dist_trans %>%  
@@ -918,4 +918,36 @@ cre_distn_gap <- function(p_two_pp_sum = two_pp_sum, p_distn = distn, p_pref = p
            votes_sum = sum(votes)) %>% 
     ungroup()
 
+}
+
+plot_votes_top3_ts <- function(p_distn = distn) {
+  # Plot timeseries of votes for the top 3 parties in each election
+  # Useful for assessing which group of supporters failed to vote in 2017
+  dist_w_3rem_ggp <-
+    p_distn %>% 
+    group_by(year, round) %>% 
+    mutate(cands_rem = n()) %>% 
+    ungroup() %>% 
+    filter(cands_rem == 3) %>% 
+    left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
+    inner_join(elec_dates, by = c("year" = "elec_ID")) %>% 
+    select(date, year, votes, party_std) %>% 
+    bind_rows(merge_tot_votes_enrolled() %>% select(date, year, votes, party_std)) %>% 
+    # Add didn't vote numbers
+    
+    filter(year >= "2010") %>% # Full distribution data only available from 2010 election
+    
+    ggplot(aes(x = date, y = votes, group = party_std, colour = party_std)) +
+    geom_point(size = 1) +
+    geom_line(size = 0.25, na.rm = TRUE, linetype = "solid") +
+    scale_colour_manual("Party", values = party_colours()) +
+    labs(title = "Allocated distribution with 3 candidates remaining", x = "") +
+    expand_limits(y = 0) +
+    
+    scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y") +
+    scale_y_continuous(breaks = seq(0, 20000, 2000), labels = scales::comma)
+  
+  ggplotly(dist_w_3rem_ggp)
+  # dist_w_3rem_ggp
+  
 }

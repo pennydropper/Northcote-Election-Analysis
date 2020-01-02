@@ -140,8 +140,13 @@ plot_party_votes_by_elec(party_votes_by_elec)
 
 ```
 
+```{r plot_votes_top3_ts}
+plot_votes_top3_ts()
+```
+
+
 ```{r plot_votes_by_cand}
-plot_votes_by_cand("2017", distn)
+plot_votes_by_cand("2010", distn)
 ```
 
 
