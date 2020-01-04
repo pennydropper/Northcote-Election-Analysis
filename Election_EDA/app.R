@@ -12,6 +12,7 @@ library(lubridate)
 library(plotly)
 library(gridExtra)
 library(leaflet)
+library(networkD3)
 
 source("./functions.R")
 
@@ -97,10 +98,13 @@ ui <-
                      fluidRow(
                         box(
                            selectInput("first_final_votes_sel_year",
-                                       "Select year to display for chart:",
+                                       "Select election:",
                                        choices = elec_dates$elec_ID %>% sort(decreasing = TRUE)),
                            width = 2
-                        )
+                        ),
+                        
+                           valueBoxOutput("valbox_win_sh_out", width = 2)
+
                      ),
                      
                         fluidRow(
@@ -110,6 +114,11 @@ ui <-
                               p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
                         From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.  
                         From the 2010 election, distributed preference votes available for all candidates.")
+                           ),
+                           box(
+                              p(strong("Flow of preferences of minor candidates to top 2")),
+                              sankeyNetworkOutput("votes_distn_sankey"),
+                              p("Use mouseover for more information on number of candidates. Click and drag grey nodes if congested.")
                            )
                         )
                      
@@ -355,7 +364,15 @@ server <- function(input, output) {
       input$votes_distn_cand_sel
    })
    
-   }
+   output$votes_distn_sankey <- renderSankeyNetwork({
+      plot_distn_sankey(input$first_final_votes_sel_year, distn)
+   })
+   
+   output$valbox_win_sh_out <- renderInfoBox({
+      valbox_win_sh(input$first_final_votes_sel_year)
+   })
+   
+}
 
 # Run the application 
 shinyApp(ui = ui, server = server)

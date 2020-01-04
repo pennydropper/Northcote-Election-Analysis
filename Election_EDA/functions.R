@@ -755,7 +755,7 @@ first_final_votes_no_distn <- function(p_year = "2002") {
            votes_max_pool = sum(votes_max, na.rm = TRUE),
            hov_text = str_c("1st pref: ", scales::comma(votes_min), " (", scales::percent(votes_min / votes_min_sum), ")",
                             ". Pref distn: ", if_else(is.na(votes_max), "NA", 
-                                    str_c(scales::comma(votes_redist), "<br>. Final: ",
+                                    str_c(scales::comma(votes_redist), ".<br>Final: ",
                                           scales::comma(votes_max), " (", scales::percent(votes_max / votes_max_pool), ")")))) %>% 
     pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
     mutate(hov_text = str_c(readable_nm(candidate), ", ", coalesce(party_std, "NA"), "<br>", hov_text),
@@ -783,7 +783,7 @@ first_final_votes_with_distn <- function(p_distn = distn, p_year =  "2017") {
            votes_redist = votes_max - votes_min,
            hov_text = str_c("1st pref: ", scales::comma(votes_min), " (", scales::percent(votes_min / votes_min_sum), ")",
                             ". Pref distn: ", if_else(is.na(votes_max), "NA", 
-                                    str_c(scales::comma(votes_redist), "<br>. Final: ", 
+                                    str_c(scales::comma(votes_redist), ".<br>Final: ", 
                                           scales::comma(votes_max), " (", scales::percent(votes_max / votes_max_pool), ")")))) %>% 
     select(-votes) %>%
     pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
@@ -858,7 +858,9 @@ plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
     mutate(rev_rank = min_rank(votes),
            votes_next = lead(votes),
            votes_behind = votes_next - votes,
-           hov_text = str_c("Eliminated in round ", round, " when ", votes_behind, " behind next-placed ", readable_nm(lead(candidate))),
+           hov_text = if_else(votes_behind < 1000, str_c(votes_behind, " behind"),
+                              str_c("Eliminated in round ", round, " when ", 
+                                    votes_behind, " behind next-placed ", readable_nm(lead(candidate)))),
            cands_rem = n()) %>% 
     ungroup() %>% 
     # filter(round >= 9) %>% 
@@ -887,7 +889,7 @@ plot_votes_by_cand <- function(p_year = "2017", p_distn = distn){
       votes_by_cand_ggp +
       geom_point(data = cand_elim_margin, aes(y = votes_next, fill = NA), colour = "grey") +
       geom_segment(data = cand_elim_margin, aes(yend = votes_next, y = votes, fill = NA, xend = candidate),
-                   colour = "grey", na.rm = TRUE, linetype = "dotted`")
+                   colour = "grey", na.rm = TRUE, linetype = "dashed`")
   }
   
   ggplotly(votes_by_cand_ggp, tooltip = "text")
@@ -955,6 +957,8 @@ plot_votes_top3_ts <- function(p_distn = distn) {
 plot_distn_sankey <- function(p_year = "2010", p_distn = distn ) {
   # Plot Sankey diagram of distributions for specified year
   
+  cand_str_cleanup <- c("\\s+" = "_", "," = "", "[:punct:]" = "_", "_+" = "_", "_+$" = "")
+  
   cand_rank <-
     p_distn %>% 
     filter(year == p_year) %>% 
@@ -963,21 +967,62 @@ plot_distn_sankey <- function(p_year = "2010", p_distn = distn ) {
               votes_min = min(votes)) %>% 
     mutate(cand_rank = row_number(-votes_max) - 1) %>% 
     ungroup() %>% 
+    left_join(cands_std, by = c("year", "candidate")) %>% 
     arrange(cand_rank) %>% 
-    print()
+    mutate_at(c("candidate", "party_std"), ~str_replace_all(., cand_str_cleanup)) %>% 
+    mutate(node_grey = "grey") 
+  
+  my_color <-
+    str_c('d3.scaleOrdinal() .domain(["',
+          str_c(c(cand_rank$candidate, "grey"), collapse = '", "'),
+          '"]) .range(["',
+          str_c(c(cand_rank$party_colour, "grey"), collapse = '", "'),
+          '"])', sep = "") 
   
   vote_distn <-
-    pref %>% 
+    pref_w_party %>% 
     filter(year == p_year) %>% 
-    inner_join(cand_rank, by = c("year", "from_cand" = "candidate")) %>% 
-    inner_join(cand_rank, by = c("year", "to_cand" = "candidate"), suffix = c(".from", ".to")) %>% 
-    select(year, from_cand, cand_rank.from, to_cand, cand_rank.to, votes, everything()) %>% 
-    print()
+    mutate_at(c("from_cand", "to_cand"), ~str_replace_all(., cand_str_cleanup)) %>% 
+    mutate_at(c("from_cand", "to_cand"), list(id = ~match(., cand_rank$candidate) - 1)) %>% 
+    select(year, from_cand, from_cand_id, to_cand, to_cand_id, votes, everything()) 
   
   sankeyNetwork(Links = vote_distn %>% as.data.frame(), Nodes = cand_rank %>% as.data.frame(),
-                Source = "cand_rank.from", Target = "cand_rank.to",
+                Source = "from_cand_id", Target = "to_cand_id",
                 Value = "votes", NodeID = "candidate",
-                fontSize= 12, nodeWidth = 30,
-                fontFamily = "ariel")
+                colourScale = my_color, LinkGroup = "to_cand", NodeGroup = "node_grey",
+                fontSize= 8, nodeWidth = 15,
+                fontFamily = "Helvetica", sinksRight = FALSE)
   
+}
+
+expand_two_pp_sum <- function(p_year = "2018") {
+  # Elaborate on the 2pp summary
+  
+  two_pp_invalid_str <- "(Informal|sorts)"
+  
+  two_pp_sum %>% 
+    filter(year == p_year &
+             !str_detect(candidate, two_pp_invalid_str)) %>% 
+    group_by(year) %>% 
+    arrange(-votes) %>% 
+    mutate(vote_sh = votes / sum(votes, na.rm = TRUE),
+           vote_rank = min_rank(-votes),
+           vote_margin = votes - lead(votes)) %>% 
+    left_join(cands_std, by = c("year", "candidate")) %>% 
+    mutate(cand_read = readable_nm(candidate))
+}
+
+
+valbox_win_sh <- function(p_year = "2018") {
+  # Create valuebox with winners share
+  
+  win_sh_lst <-
+    expand_two_pp_sum(p_year)[1,] %>% 
+    flatten()
+  
+  valueBox(win_sh_lst$vote_sh %>% scales::percent(accuracy = .1),
+           str_c("2pp to ", win_sh_lst$cand_read, "\n", win_sh_lst$party_std), 
+           icon = icon("trophy"),
+           width = 2)
+
 }

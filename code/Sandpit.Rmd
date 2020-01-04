@@ -1,0 +1,162 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+
+distn %>% 
+  filter(year == "2018") %>% 
+  group_by(year, round) %>% 
+  arrange(round, votes) %>% 
+  mutate(rev_rank = min_rank(-votes),
+         votes_next = lead(votes),
+         votes_behind = votes_next - votes,
+         # hov_text = str_c("Eliminated when ", votes_behind, " behind next-placed ", readable_nm(lead(candidate))),
+         cands_rem = n()) %>% 
+  ungroup() %>% 
+  # filter(round >= 9) %>% 
+  filter((rev_rank - cands_rem == 0L) & rev_rank > 2) # Don't count second place getter
+    
+
+```
+
+
+```{r}
+distn %>% 
+  filter(year == "2018") %>% 
+  group_by(year, round) %>% 
+  arrange(round, votes) %>% 
+  mutate(rev_rank = min_rank(votes),
+         votes_next = lead(votes),
+         votes_behind = votes_next - votes,
+         hov_text = str_c("Eliminated when ", votes_behind, " behind next-placed ", readable_nm(lead(candidate)))) %>% 
+  ungroup() %>% 
+  # filter(round >= 9)
+  filter(rev_rank == 1) 
+  filter(min_rank(-round) >= 2) # Don't count second place getter
+```
+
+```{r}
+
+
+plot_votes_top3_ts()
+
+```
+
+```{r}
+merge_tot_votes_enrolled() %>% 
+    select(year, votes, party_std)
+```
+
+```{r}
+pref %>% 
+  filter(year == "2010")
+```
+```{r}
+distn %>% 
+  filter(year == "2010") %>% 
+  group_by(year, candidate) %>% 
+  mutate(rnd_max = max(round),
+         votes_min = min(votes)) %>% 
+  arrange(rnd_max, round)
+```
+```{r}
+plot_distn_sankey <- function(p_year = "2010", p_distn = distn ) {
+  # Plot Sankey diagram of distributions for specified year
+  
+  cand_str_cleanup <- c("\\s+" = "_", "," = "", "[:punct:]" = "_", "_+" = "_", "_+$" = "")
+  
+  cand_rank <-
+    p_distn %>% 
+    filter(year == p_year) %>% 
+    group_by(year, candidate) %>%
+    summarise(votes_max = max(votes),
+              votes_min = min(votes)) %>% 
+    mutate(cand_rank = row_number(-votes_max) - 1) %>% 
+    ungroup() %>% 
+    left_join(cands_std, by = c("year", "candidate")) %>% 
+    arrange(cand_rank) %>% 
+    mutate_at(c("candidate", "party_std"), ~str_replace_all(., cand_str_cleanup)) %>% 
+    mutate(node_grey = "grey") %>% 
+    print()
+
+  my_color <-
+    str_c('d3.scaleOrdinal() .domain(["',
+          str_c(c(cand_rank$candidate, "grey"), collapse = '", "'),
+          '"]) .range(["',
+          str_c(c(cand_rank$party_colour, "grey"), collapse = '", "'),
+          '"])', sep = "") 
+  cat(my_color)
+          
+  vote_distn <-
+    pref_w_party %>% 
+    filter(year == p_year) %>% 
+    mutate_at(c("from_cand", "to_cand"), ~str_replace_all(., cand_str_cleanup)) %>% 
+    mutate_at(c("from_cand", "to_cand"), list(id = ~match(., cand_rank$candidate) - 1)) %>% 
+    select(year, from_cand, from_cand_id, to_cand, to_cand_id, votes, everything()) %>% 
+    arrange(from_cand_id, to_cand_id) %>% 
+    print()
+  
+  sankeyNetwork(Links = vote_distn %>% as.data.frame(), Nodes = cand_rank %>% as.data.frame(),
+                Source = "from_cand_id", Target = "to_cand_id",
+                Value = "votes", NodeID = "candidate",
+                colourScale = my_color, LinkGroup = "to_cand", NodeGroup = "node_grey",
+                fontSize= 8, nodeWidth = 15, iterations = 32,
+                fontFamily = "Helvetica", sinksRight = FALSE)
+  
+}
+
+plot_distn_sankey("2010")
+```
+
+```{r}
+first_final_votes_with_distn()
+```
+
+# First and Final Votes Boxes
+
+* Winner's share of final votes 
+* Winner's lead over 2nd placegetter
+* Number of 3rd placegetter's preferences to winner
+* Prop of didn't vote
+
+```{r}
+expand_two_pp_sum <- function(p_year = "2018") {
+  # Elaborate on the 2pp summary
+
+  two_pp_invalid_str <- "(Informal|sorts)"
+
+  two_pp_sum %>% 
+    filter(year == p_year &
+             !str_detect(candidate, two_pp_invalid_str)) %>% 
+    group_by(year) %>% 
+    arrange(-votes) %>% 
+    mutate(vote_sh = votes / sum(votes, na.rm = TRUE),
+           vote_rank = min_rank(-votes),
+           vote_margin = votes - lead(votes)) %>% 
+    left_join(cands_std, by = c("year", "candidate")) %>% 
+    mutate(cand_read = readable_nm(candidate))
+}
+
+expand_two_pp_sum()
+```
+
+```{r}
+expand_two_pp_sum()[1,] %>% 
+  flatten() %>% 
+  str()
+
+```
+
+
+```{r}
+
+
+
+valbox_win_sh("2018")
+
+scales::percent(0.513, accuracy = 0.1)
+```
+
+
