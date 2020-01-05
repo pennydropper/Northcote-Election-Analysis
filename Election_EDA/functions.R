@@ -1023,6 +1023,50 @@ valbox_win_sh <- function(p_year = "2018") {
   valueBox(win_sh_lst$vote_sh %>% scales::percent(accuracy = .1),
            str_c("2pp to ", win_sh_lst$cand_read, "\n", win_sh_lst$party_std), 
            icon = icon("trophy"),
-           width = 2)
+           color = "light-blue")
 
 }
+
+valbox_win_marg <- function(p_year = "2018") {
+  # Create valuebox with winners share
+  
+  win_sh_lst <-
+    expand_two_pp_sum(p_year)[1,] %>% 
+    flatten()
+  
+  valueBox(win_sh_lst$vote_margin,
+           "margin over 2nd place", 
+           icon = icon("ruler-horizontal"),
+           color = "light-blue")
+  
+}
+
+valbox_win_from_3rd <- 
+  function(p_year = "2018") {
+    # Create value box with the distribution of preferences from the 3rd placegetter to first 2 placegetters
+    
+    pref_3rd <-
+      pref_w_party %>% 
+      filter(year == p_year) %>% 
+      group_by(year, from_cand) %>% 
+      mutate(rem_cands = n()) %>% 
+      ungroup() %>% 
+      filter(rem_cands == 2) %>% 
+      inner_join(expand_two_pp_sum(p_year), by = c("year", "to_cand" = "candidate"), suffix = c(".pref", ".all")) %>% 
+      arrange(-votes.all)
+    
+    if (nrow(pref_3rd) >= 2) {
+      valueBox(pref_3rd[1, "votes.pref"],
+               str_c("of ", pref_3rd[1, "votes_sum"], " preferences distribution from 3rd placed candidate to ", 
+                     readable_nm(pref_3rd[1, "to_cand"])),
+               icon = icon("code-branch"),
+               color = "aqua")      
+    } else {
+      valueBox("",
+               str_c("Preference distribution not published for ", p_year),
+               icon = icon("question"),
+               color = "yellow")
+    }
+    
+
+  }

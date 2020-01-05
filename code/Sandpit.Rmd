@@ -160,3 +160,17 @@ scales::percent(0.513, accuracy = 0.1)
 ```
 
 
+```{r}
+pref_w_party %>% 
+      filter(year == "2018") %>% 
+      group_by(year, from_cand) %>% 
+      mutate(rem_cands = n()) %>% 
+      ungroup() %>% 
+      filter(rem_cands == 2) %>% 
+      inner_join(expand_two_pp_sum(), by = c("year", "to_cand" = "candidate"), suffix = c(".pref", ".all")) %>% 
+      arrange(-votes.all)
+```
+```{r}
+expand_two_pp_sum()
+```
+
