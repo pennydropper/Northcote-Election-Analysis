@@ -25,18 +25,18 @@ retrieve_dfs(transf_df, "./data")
 
 ui <-
    dashboardPage(
-      dashboardHeader(title = "Northcote Election Results"),
+      dashboardHeader(title = "Northcote Elections' Results"),
       
       dashboardSidebar(
          sidebarMenu(
             menuItem("Home", tabName = "home"),
             menuItem("First and Final Votes", tabName = "first_and_final_votes"),
             menuItem("First Pref Votes", tabName = "first_pref_votes"),
-            menuItem("2 Party Preferred Share", tabName = "two_pp_share"),
-            menuItem("2 Party Preferred Votes", tabName = "two_pp_votes"),
+            menuItem("Two Party Preferred", tabName = "two_pp_share"),
+            # menuItem("2 Party Preferred Votes", tabName = "two_pp_votes"),
             menuItem("Votes distribution FROM party", tabName = "votes_distn_from_party"),
             menuItem("Votes distribution TO party", tabName = "votes_distn_to_party"),
-            menuItem("Votes distribution FROM candidate", tabName = "votes_distn_from_cand"),
+            # menuItem("Votes distribution FROM candidate", tabName = "votes_distn_from_cand"),
             menuItem("Polling station map", tabName = "poll_map"),
             menuItem("Polling station sizes", tabName = "poll_station_sizes"),
             menuItem("2 Party Pref by Polling Station", tabName = "two_pp_by_poll_stn"),
@@ -129,21 +129,42 @@ ui <-
             
             tabItem( "first_pref_votes",
                      # Total first preference votes by party
+                     fluidRow(
+                        valbox_fpref_last_votes(1L),
+                        valbox_fpref_last_votes(2L)
+                     ),
                      
                      fluidRow(
-                        plotlyOutput("party_votes_by_elec_plot", height = 700)
+                        plotlyOutput("party_votes_by_elec_plot")
                      )
             ),
             
             tabItem( "two_pp_share",
-                     # Two party preferred share
+                     # Two party preferred
+                     
+                     fluidRow(
+                        valueBoxOutput("valbox_2pp_last_total_out", width = 2),
+                        valueBoxOutput("valbox_2pp_max_total_out", width = 2),
+                        valueBoxOutput("valbox_2pp_last_sh_out", width = 2),
+                        valueBoxOutput("valbox_2pp_max_sh_out", width = 2)
+                     ),
                      
                      fluidRow(
                         # h2(textOutput("plot_booth_votes_bar_heading")),  # Something wacky about these plots
-                        plotlyOutput("two_pp_all_booth_plot", height = 700),
-                        p(),
-                        p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
-                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
+                        box(
+                           plotlyOutput("two_pp_all_booth_plot"),
+                           width = 12
+                        )
+                        
+                     ),
+                     fluidRow(
+                        box(
+                           p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters."),
+                           width = 12
+                           
+                        )
+                        
                      )
                      
             ),
@@ -331,12 +352,15 @@ server <- function(input, output) {
    })
    
    output$two_pp_all_booth_plot <- renderPlotly({
-      plot_two_pp_all_booth()
-      # plot_2pp_vote_ts(two_pp_all_booth)
+      two_pp_tot <-
+         plot_two_pp_all_booth()
+      two_pp_sh <-
+         plot_2pp_vote_ts()
+      subplot(two_pp_tot, two_pp_sh)
    })
 
    output$two_pp_vote_ts_plot <- renderPlotly({
-      plot_2pp_vote_ts(two_pp_all_booth)
+      plot_2pp_vote_ts()
    })
    
    output$votes_by_booth_all_plot <- renderPlotly({
@@ -386,7 +410,23 @@ server <- function(input, output) {
    output$valbox_didnt_vote_out <- renderInfoBox({
       valbox_didnt_vote(input$first_final_votes_sel_year)
    })
-
+   
+   output$valbox_2pp_last_total_out <- renderInfoBox({
+      valbox_2pp_last_total()
+   })
+   
+   output$valbox_2pp_max_total_out <- renderInfoBox({
+      valbox_2pp_max_total()
+   })
+   
+   output$valbox_2pp_last_sh_out <- renderInfoBox({
+      valbox_2pp_last_sh()
+   })
+   
+   output$valbox_2pp_max_sh_out <- renderInfoBox({
+      valbox_2pp_max_sh()
+   })
+   
 }
 
 # Run the application 
