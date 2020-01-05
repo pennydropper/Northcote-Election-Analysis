@@ -105,7 +105,8 @@ ui <-
                         
                         valueBoxOutput("valbox_win_sh_out", width = 2),
                         valueBoxOutput("valbox_win_marg_out", width = 2),
-                        valueBoxOutput("valbox_win_from_3rd_out", width = 2)
+                        valueBoxOutput("valbox_win_from_3rd_out", width = 2),
+                        valueBoxOutput("valbox_didnt_vote_out", width = 2)
 
                      ),
                      
@@ -377,8 +378,13 @@ server <- function(input, output) {
    output$valbox_win_marg_out <- renderInfoBox({
       valbox_win_marg(input$first_final_votes_sel_year)
    })
+
    output$valbox_win_from_3rd_out <- renderInfoBox({
       valbox_win_from_3rd(input$first_final_votes_sel_year)
+   })
+      
+   output$valbox_didnt_vote_out <- renderInfoBox({
+      valbox_didnt_vote(input$first_final_votes_sel_year)
    })
 
 }

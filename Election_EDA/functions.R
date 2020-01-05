@@ -1034,7 +1034,7 @@ valbox_win_marg <- function(p_year = "2018") {
     expand_two_pp_sum(p_year)[1,] %>% 
     flatten()
   
-  valueBox(win_sh_lst$vote_margin,
+  valueBox(win_sh_lst$vote_margin %>% scales::comma(),
            "margin over 2nd place", 
            icon = icon("ruler-horizontal"),
            color = "light-blue")
@@ -1056,8 +1056,9 @@ valbox_win_from_3rd <-
       arrange(-votes.all)
     
     if (nrow(pref_3rd) >= 2) {
-      valueBox(pref_3rd[1, "votes.pref"],
-               str_c("of ", pref_3rd[1, "votes_sum"], " preferences distribution from 3rd placed candidate to ", 
+      valueBox(pref_3rd[1,] %>% pull("votes.pref") %>% scales::comma(),
+               str_c("of ", pref_3rd[1,] %>% pull("votes_sum") %>% scales::comma(),
+                     " preferences distribution from 3rd placed candidate to ", 
                      readable_nm(pref_3rd[1, "to_cand"])),
                icon = icon("code-branch"),
                color = "aqua")      
@@ -1067,6 +1068,19 @@ valbox_win_from_3rd <-
                icon = icon("question"),
                color = "yellow")
     }
-    
-
   }
+
+valbox_didnt_vote <- function(p_year = "2018") {
+  # Generates valuebox for number of enrolled voters who didn't vote
+  didnt_vote <-
+    merge_tot_votes_enrolled() %>% 
+    filter(year == p_year) %>% 
+    flatten()
+  
+  valueBox(didnt_vote$votes %>% scales::comma(),
+           "enrolled voters who didn't vote",
+           icon = icon("kiss"),
+           color = "maroon")
+}
+
+

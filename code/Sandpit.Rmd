@@ -167,10 +167,13 @@ pref_w_party %>%
       mutate(rem_cands = n()) %>% 
       ungroup() %>% 
       filter(rem_cands == 2) %>% 
-      inner_join(expand_two_pp_sum(), by = c("year", "to_cand" = "candidate"), suffix = c(".pref", ".all")) %>% 
+      inner_join(expand_two_pp_sum("2018"), by = c("year", "to_cand" = "candidate"), suffix = c(".pref", ".all")) %>% 
       arrange(-votes.all)
 ```
 ```{r}
-expand_two_pp_sum()
+
+
+expand_two_pp_sum("2018")[1,] %>% pull(votes) %>% scales::comma() %>% str_c(.)
+
 ```
 
