@@ -237,23 +237,42 @@ ui <-
             tabItem( "poll_map",
                      # Northcote map with year selector
                      
-                     sidebarLayout(
-                        sidebarPanel(
+                     # sidebarLayout(
+                     #    sidebarPanel(
+                     #       selectInput("map_year",
+                     #                   "Select year to display on map:",
+                     #                   choices = elec_dates$elec_ID),
+                     #       width = 2
+                     #    ),
+                     #    
+                     #    # Show a plot of the generated distribution
+                     #    mainPanel(
+                     #       h2(textOutput("poll_map_heading")),
+                     #       p(),
+                     #       leafletOutput("booth_map", height = 600),
+                     #       p(),
+                     #       p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                     #    From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
+                     #    )
+                     # )
+                     
+                     fluidRow(
+                        box(
                            selectInput("map_year",
                                        "Select year to display on map:",
-                                       choices = elec_dates$elec_ID),
-                           width = 2
-                        ),
-                        
-                        # Show a plot of the generated distribution
-                        mainPanel(
+                                       choices = elec_dates$elec_ID)
+                        )
+                     ),
+                     fluidRow(
+                        box(
                            h2(textOutput("poll_map_heading")),
                            p(),
-                           leafletOutput("booth_map", height = 600),
-                           p(),
-                           p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
-                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
+                           leafletOutput("booth_map", height = 600)
                         )
+                     ),
+                     fluidRow(
+                        p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
                      )
             ),
             
