@@ -706,7 +706,9 @@ plot_booth_votes_bar <- function(p_year = "2018", p_votes_by_booth_all = votes_b
     mutate(elect_sh = votes / sum(votes, na.rm = TRUE)) %>% 
     ungroup() %>% 
     mutate(hov_text = str_c(booth, "<br>Votes: ", votes, "<br>Share of electorate: ", scales::percent(elect_sh, accuracy = 0.1),
-                            "<br>Share to ", party_std, ": ", scales::percent(votes_sh, accuracy = 0.1)))
+                            "<br>Share to ", party_std, ": ", scales::percent(votes_sh, accuracy = 0.1))) %>% 
+    mutate(phys_stn = match(booth, booth_addr_lst$booth),
+           phys_stn = if_else(is.na(phys_stn), "Remote", "Local"))
   
   party2 <-
     votes_for_year %>% 
@@ -723,9 +725,10 @@ plot_booth_votes_bar <- function(p_year = "2018", p_votes_by_booth_all = votes_b
     mutate(booth = booth %>% fct_reorder(votes)) %>% 
     # glimpse()
     
-    ggplot(aes(x = booth, y = votes)) +
-    geom_bar(aes(fill = votes_sh, text = hov_text), stat = "identity") +
-    scale_fill_gradientn(str_c(str_replace(party2, "Australian ", ""), " 2pp share\nvs ALP"), 
+    ggplot(aes(x = booth, y = votes, text = hov_text)) +
+    geom_bar(aes(colour = phys_stn, fill = votes_sh), stat = "identity") +
+    scale_colour_manual("Station type", values = c("Remote" = "#d9d9d9", "Local" = "#636363")) +
+    scale_fill_gradientn(str_c(str_replace(party2, "Australian ", ""), " 2pp share\nvs ALP"),
                          colours = c(party_colours()["Australian Labor Party"], "grey", party_colours()[party2]),
                          limits = c(floor(party2_sh_rng[1] * 10) / 10, ceiling(party2_sh_rng[2] * 10) / 10),
                          labels = scales::percent) +
