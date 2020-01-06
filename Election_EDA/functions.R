@@ -1160,3 +1160,28 @@ valbox_fpref_last_votes <-
           icon = if_else(p_votes_rnk == 1, "trophy", "arrow-right") %>% icon(),
           width = 2)
   }
+
+valbox_local_rem <- function(p_year = "2018", p_stat_typ = "Local") {
+  # Print valuebox with the voter share between polling station types
+  
+  poll_stn_summ <-
+    votes_by_booth_all %>% 
+    filter(year == p_year) %>% 
+    filter(booth != "All") %>% 
+    mutate(phys_stn = match(booth, booth_addr_lst$booth),
+           phys_stn = if_else(is.na(phys_stn), "Remote", "Local")) %>% 
+    group_by(phys_stn, year) %>% 
+    summarise(votes_sum = sum(votes, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(votes_sh = votes_sum / sum(votes_sum)) %>% 
+    filter(phys_stn == p_stat_typ)
+  
+  valueBox(value = poll_stn_summ$votes_sh[1] %>% scales::percent(accuracy = 0.1),
+           str_c("or ", scales::comma(poll_stn_summ$votes_sum[1]), " voters attending a ",
+              str_to_lower(p_stat_typ), " polling station"),
+           color = "green",
+           icon = if_else(p_stat_typ == "Local", "map-marker-alt", "compass") %>% icon(),
+           width = 2)
+  
+}
+

@@ -243,7 +243,8 @@ ui <-
                                        "Select year to display on map:",
                                        choices = elec_dates$elec_ID),
                            width = 2
-                        )
+                        ),
+                        valueBoxOutput("valbox_local_rem_out", width = 2)
                      ),
                      
                      fluidRow(
@@ -422,6 +423,10 @@ server <- function(input, output) {
    
    output$valbox_2pp_max_sh_out <- renderInfoBox({
       valbox_2pp_max_sh()
+   })
+   
+   output$valbox_local_rem_out <- renderInfoBox({
+      valbox_local_rem(input$map_year, "Local")
    })
    
 }
