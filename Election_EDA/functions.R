@@ -183,7 +183,8 @@ print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec 
   
   pal <- colorNumeric(
     palette = pal_spect,
-    domain = p_votes_by_phys_booth$votes_sh)
+    domain = p_votes_by_phys_booth$votes_sh,
+    reverse = FALSE)
   
   leaflet(options = leafletOptions(minZoom = 12,
                                    maxZoom = 16)) %>%
@@ -732,9 +733,13 @@ plot_booth_votes_bar <- function(p_year = "2018", p_votes_by_booth_all = votes_b
                          colours = c(party_colours()["Australian Labor Party"], "grey", party_colours()[party2]),
                          limits = c(floor(party2_sh_rng[1] * 10) / 10, ceiling(party2_sh_rng[2] * 10) / 10),
                          labels = scales::percent) +
+    scale_y_continuous(labels = scales::comma) +
+    labs(title = str_c("Polling station attendance in ", p_year),
+         x = "", y = "Votes") +
     coord_flip()
   
   ggplotly(votes_by_booth_all_ggp, tooltip = "text")
+
 }
 
 cre_two_pp_sum <- function(p_two_pp = two_pp) {
