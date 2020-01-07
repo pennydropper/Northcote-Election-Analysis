@@ -286,6 +286,13 @@ ui <-
                         mainPanel(
                            width = 10,
                            fluidRow(
+                              valueBoxOutput("valbox_poll_stn_votes_out", width = 2),
+                              #valbox_poll_stn_elec_sh_last_out, valbox_poll_stn_2pp_last_out
+                              valueBoxOutput("valbox_poll_stn_elec_sh_last_out", width = 2),
+                              valueBoxOutput("valbox_poll_stn_2pp_last_out", width = 2)
+                           ),
+                           
+                           fluidRow(
                               plotlyOutput("poll_stn_ts_out", height = 450)
                               
                            ),
@@ -418,6 +425,27 @@ server <- function(input, output) {
    
    output$valbox_local_rem_out <- renderInfoBox({
       valbox_local_rem(input$map_year, "Local")
+   })
+   
+   output$valbox_poll_stn_votes_out <- renderInfoBox({
+      valbox_poll_stn_votes(input$two_pp_by_booth_nondom_plot_booth,
+                            p_dim = "votes_sum",
+                            p_max_last = "last",
+                            p_color = "aqua")
+   })
+   
+   output$valbox_poll_stn_2pp_last_out <- renderInfoBox({
+      valbox_poll_stn_votes(input$two_pp_by_booth_nondom_plot_booth,
+                            p_dim = "votes_2pp_sh",
+                            p_max_last = "last",
+                            p_color = "yellow")
+   })
+   
+   output$valbox_poll_stn_elec_sh_last_out <- renderInfoBox({
+      valbox_poll_stn_votes(input$two_pp_by_booth_nondom_plot_booth,
+                            p_dim = "votes_sh_elec",
+                            p_max_last = "last",
+                            p_color = "aqua")
    })
    
 }

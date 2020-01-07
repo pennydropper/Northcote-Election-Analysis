@@ -1204,3 +1204,60 @@ valbox_local_rem <- function(p_year = "2018", p_stat_typ = "Local") {
   
 }
 
+valbox_poll_stn_votes <- function(p_booth = "Northcote South", p_max_last = c("last", "max"), 
+                                  p_dim = c("votes_sum", "votes_sh_elec", "votes_2pp_sh"),
+                                  p_color = "cyan") {
+  # Generate valuebox with specified dimensions
+  
+  votes_booth_sum <-
+    votes_by_booth_all %>% 
+    filter(booth != "All") %>% 
+    group_by(date) %>% 
+    mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    filter(booth == p_booth) %>% 
+    select(booth, year, votes_sum = votes, party_std, votes_sh_elec = votes_sh)
+  
+  votes_booth_2pp <-
+    two_pp_by_booth_nondom %>% 
+    filter(votes > 0, booth == p_booth) %>% 
+    mutate(year = format(date, "%Y")) %>% 
+    select(booth, year, votes_2pp_sum = votes, party_std, votes_2pp_sh = votes_sh)
+  
+  sort_dim <- "year"
+  sort_dim <- if (p_max_last[1] != "last") {p_dim[1]} else {"year"}
+  
+  votes_booth_sum <-
+    votes_booth_sum %>% 
+    full_join(votes_booth_2pp, by = c("booth", "year", "party_std")) %>% 
+    arrange(.data[[sort_dim]] %>% desc())
+  
+  result <-
+    if (p_dim[1] %in% c("votes_2pp_sh", "votes_sh_elec")) {
+      votes_booth_sum %>% 
+        pull(.data[[p_dim[1]]]) %>% 
+        head(1) %>% 
+        scales::percent(accuracy = 0.1)
+    } else {
+      votes_booth_sum %>% 
+        pull(.data[[p_dim[1]]]) %>% 
+        head(1) %>% 
+        scales::comma()
+    }
+  
+  measure <-
+    case_when(
+      p_dim[1] == "votes_sum" ~ "Total votes lodged at ",
+      p_dim[1] == "votes_sh_elec" ~ "Share of electorate who voted at ",
+      p_dim[1] == "votes_2pp_sh" ~ str_c("Two-party-preferred for ", votes_booth_sum$party_std[1], " at "),
+      TRUE ~ "NA"
+    )
+  
+  valueBox(result,
+        str_c(measure, p_booth, " polling station in ", votes_booth_sum$year[1]),
+        color = p_color,
+        # icon = icon()
+        width = 2)
+  
+}
+
