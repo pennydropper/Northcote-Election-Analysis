@@ -370,7 +370,7 @@ plot_two_pp_by_booth_nondom <-
     legend_list <-
       p_two_pp_by_booth_nondom %>% 
       filter(booth == p_booth) %>% 
-      mutate(leg_text = str_c(booth, ",<br>", str_replace(party_std, "Australian ", ""), " 2pp")) %>% # eg "Westgarth, Liberal 2pp"
+      mutate(leg_text = str_c(booth, ",<br>", str_replace(party_std, "Australian ", ""), "")) %>% # eg "Westgarth, Liberal 2pp"
       select(party_std, leg_text) %>%
       rbind(tibble(leg_text = "All polling<br>stations", party_std = "Total")) %>% 
       distinct() %>% 
@@ -400,7 +400,8 @@ plot_two_pp_by_booth_nondom <-
     
     
     two_pp_by_booth_ggplotly <-
-      ggplotly(two_pp_by_booth_ggplot, tooltip = "hov_text")
+      ggplotly(two_pp_by_booth_ggplot, tooltip = "hov_text") # %>%  
+      # layout(legend = list(orientation = "h", y = -0.2))
     
     two_pp_by_booth_ggplotly$x$data <- 
       two_pp_by_booth_ggplotly$x$data %>% 
@@ -488,31 +489,49 @@ plot_votes_by_booth_all <- function(p_votes_by_booth_all = votes_by_booth_all, p
     ungroup %>% 
     mutate(hov_text = str_c(booth, ": ", scales::comma(votes), "<br>Share of total: ", scales::percent(votes_sh, accuracy = 0.1))) 
     
-    # filter(booth == "Fairfield")
+  # Create list of entries for the legend
+  legend_list <-
+    votes_by_booth_prep %>% 
+    filter(booth == p_booth_sel) %>% 
+    mutate(leg_text = str_c(booth, ",<br>", str_replace(party_std, "Australian ", ""))) %>% # eg "Westgarth, Liberal"
+    select(party_std, leg_text) %>%
+    rbind(tibble(leg_text = "All polling<br>stations", party_std = "Total")) %>% 
+    distinct() %>% 
+    deframe()
   
   votes_by_elect_booth_ggp <-
     votes_by_booth_prep %>% 
     
-    ggplot(aes(x = date, y = votes, text = hov_text, group = booth)) +
+    ggplot(aes(x = date, y = votes, text = hov_text, group = booth, shape = party_std, colour = party_std)) +
     # scale_y_log10("Votes (log scale)", labels = scales::comma) +
     scale_y_continuous("Votes", labels = scales::comma) +
-    # expand_limits(y = 0) +
     geom_point(size = 0.25, colour = "black") +
     geom_line(colour = "grey", size = 0.25) +
-    geom_point(data = votes_by_booth_prep %>% filter(booth == p_booth_sel), colour = "black", size = 1) +
-    geom_line(data = votes_by_booth_prep %>% filter(booth == p_booth_sel), aes(colour = party_std), size = .75) +
+    geom_point(data = votes_by_booth_prep %>% filter(booth == p_booth_sel), size = 1) +
+    geom_line(data = votes_by_booth_prep %>% filter(booth == p_booth_sel)) +
     labs(title = str_c("Total votes by polling station: ", p_booth_sel, " highlighted"), x = "") +
     scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y") +
     
-    scale_color_manual("Party", values = party_colours()) +
-    theme(legend.position = "none") +
+    scale_color_manual(name = "Polling station", values = party_colours(),
+                       labels = legend_list %>% names(),
+                       breaks = legend_list)
+    # theme(legend.position = "none") 
 
-    geom_text(data = votes_by_booth_prep %>% filter(booth == p_booth_sel, date == max(votes_by_booth_prep$date, na.rm = TRUE)), 
-              aes(label = booth), nudge_x = 500, vjust = c("left"), check_overlap = TRUE) +
-    expand_limits(x = max(votes_by_booth_prep$date, na.rm = TRUE) + 1000,
-                  y = 0)
+    # geom_text(data = votes_by_booth_prep %>% filter(booth == p_booth_sel, date == max(votes_by_booth_prep$date, na.rm = TRUE)), 
+    #           aes(label = booth), nudge_x = 500, vjust = c("left"), check_overlap = TRUE) +
+    # expand_limits(x = max(votes_by_booth_prep$date, na.rm = TRUE) + 1000,
+    #               y = 0)
   
-  ggplotly(votes_by_elect_booth_ggp, tooltip = "text")
+  votes_by_elect_booth_ggplotly <-
+    ggplotly(votes_by_elect_booth_ggp, tooltip = "text") #%>%  
+    # layout(legend = list(orientation = "h", y = -0.2))
+  
+  votes_by_elect_booth_ggplotly$x$data <- 
+    votes_by_elect_booth_ggplotly$x$data %>% 
+    map(rmv_invalid_leg, legend_list)
+  
+  votes_by_elect_booth_ggplotly
+  
 }
 
 cre_party_votes_by_elec <- function(p_first_pref = first_pref, p_elec_dates = elec_dates) {
