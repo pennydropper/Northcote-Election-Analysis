@@ -39,8 +39,8 @@ ui <-
             # menuItem("Votes distribution FROM candidate", tabName = "votes_distn_from_cand"),
             menuItem("Polling stations", tabName = "poll_map"),
             # menuItem("Polling station sizes", tabName = "poll_station_sizes"),
-            menuItem("2 Party Pref by Polling Station", tabName = "two_pp_by_poll_stn"),
-            menuItem("Total votes by polling station", tabName = "votes_by_poll_stn")
+            menuItem("Votes by polling station", tabName = "two_pp_by_poll_stn")
+            # menuItem("Total votes by polling station", tabName = "votes_by_poll_stn")
          )
       ),
       
@@ -248,11 +248,6 @@ ui <-
                      ),
                      
                      fluidRow(
-                        tags$style(".topimg {
-                            margin-left:-30px;
-                            margin-right:-30px;
-                            margin-top:-15px;
-                          }"),
                         h4(textOutput("poll_map_heading"),
                           style = "margin-left: 25px;")
                      ),
@@ -282,41 +277,29 @@ ui <-
                            selectInput("two_pp_by_booth_nondom_plot_booth",
                                        "Select polling station to highlight:",
                                        choices = two_pp_by_booth_nondom %>% filter(votes > 0) %>%
-                                          pull(booth) %>% unique() %>% sort()),
+                                          pull(booth) %>% unique() %>% sort(),
+                                       selected = "Northcote South"),
                            width = 2
                         ),
                         
                         # Show a plot of the generated distribution
                         mainPanel(
-                           plotlyOutput("two_pp_by_booth_nondom_plot", height = 700),
-                           p(),
-                           p("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
-                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.")
-                        )
-                     )
-            ),
-            
-            tabItem( "votes_by_poll_stn",
-                     # Total votes by booth
-                     
-                     sidebarLayout(
-                        sidebarPanel(
-                           selectInput("votes_by_booth_sel_booth",
-                                       "Select polling station to highlight on chart:",
-                                       choices = two_pp$booth %>% unique() %>% sort() %>% discard(., ~str_detect(., "(Total)|(^All)"))),
-                           width = 2
-                        ),
-                        
-                        # Show a plot of the generated distribution
-                        mainPanel(
-                           # h2(textOutput("plot_booth_votes_bar_heading")),
-                           # p(),
-                           plotlyOutput("votes_by_booth_all_plot", height = 700)
+                           width = 10,
+                           fluidRow(
+                              plotlyOutput("poll_stn_ts_out", height = 450)
+                              
+                           ),
+                           
+                           fluidRow(
+                              h5("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                        From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.",
+                                 style = "margin-left: 25px;")
+                              
+                           )
                         )
                      )
             )
          )
-         
       )
    )
 
@@ -345,10 +328,6 @@ server <- function(input, output) {
       str_c("Number of voters at each polling station in ", input$plot_booth_votes_bar_year)
    })
    
-   output$two_pp_by_booth_nondom_plot <- renderPlotly({
-      plot_two_pp_by_booth_nondom(p_booth = input$two_pp_by_booth_nondom_plot_booth)
-   })
-   
    output$two_pp_all_booth_plot <- renderPlotly({
       two_pp_tot <-
          plot_two_pp_all_booth()
@@ -361,11 +340,23 @@ server <- function(input, output) {
       plot_2pp_vote_ts()
    })
    
-   output$votes_by_booth_all_plot <- renderPlotly({
-      plot_votes_by_booth_all(votes_by_booth_all, input$votes_by_booth_sel_booth) 
+   output$two_pp_by_booth_nondom_plot <- renderPlotly({
+      plot_two_pp_by_booth_nondom(p_booth = input$two_pp_by_booth_nondom_plot_booth)
    })
    
-   output$party_votes_by_elec_plot <- renderPlotly({
+   output$votes_by_booth_all_plot <- renderPlotly({
+      plot_votes_by_booth_all(votes_by_booth_all, input$two_pp_by_booth_nondom_plot_booth) 
+   })
+   
+   output$poll_stn_ts_out <- renderPlotly({
+      subplot(
+         plot_two_pp_by_booth_nondom(p_booth = input$two_pp_by_booth_nondom_plot_booth),
+         plot_votes_by_booth_all(votes_by_booth_all, input$two_pp_by_booth_nondom_plot_booth),
+         titleY = TRUE
+      )
+   })
+   
+      output$party_votes_by_elec_plot <- renderPlotly({
       plot_party_votes_by_elec(party_votes_by_elec)
    })
    
