@@ -53,42 +53,58 @@ ui <-
             tabItem( "home",
                      # Home page
                      
-                     sidebarLayout(
-                        sidebarPanel(
+                     fluidPage(
+                        column(
                            width = 1
                         ),
-                        
-                        mainPanel(
-                           fluidRow(
-                              h2("Northcote Election Results Home Page"),
-                              br(),
-                              h3("Tab overview and key questions:"),
-                              p(strong("First and Final Votes: "), " Who were the candidates and how much did they win by?"),
-                              p(strong("First Preference Votes:  "), "How have each party's votes trended since 1999?"),
-                              p(strong("2 Party Preferred Share:  "), "How has the ALP's 2-party preferred share trended since 1999? ",
-                                "What propotion of enrolled voters didn't vote?  What proportion of voters voted informally?"),
-                              p(strong("Votes distribution FROM party:  "), 
-                                "How have voters for different parties distributed their preferences since 2010?"),
-                              p(strong("Votes distribution TO party:  "), 
-                                "From which other parties did the leading parties receive preferences?"),
-                              p(strong("Votes distribution FROM candidate:  "),
-                                "Which parties received each candidate's preferences?"),
-                              p(strong("Polling station map:  "),
-                                "Where are Northcote's polling stations and what is their relative size?  
-                           Which neighbourhoods support which party?"),
-                              p(strong("Polling station sizes:  "), 
-                                "What are the relative sizes of polling stations?  How many votes are placed outside of polling stations?"),
-                              p(strong("2 Party Pref by Polling Station:  "), 
-                                "Which polling stations support which parties and what is the trend since 1999?"),
-                              p(strong("Total votes by Polling Station:  "),
-                                "What is the size of each polling station relative to other polling station and what are the trends? 
-                           What are the trends for the non-physical polling stations, such as Early Voting?"),
-                              p(),
-                              p(strong("Note"), " that each chart responds to mouse-overs and clicks.")
-                              
-                           )
+                        column(
+                           width = 10,
+                           h2("Northcote Election Results"),
+                           
+                           h3("Home Page"),
+                           p("Having lived in Northcote for nearly 30 years and having voted in 8 state elections (including a by-election) 
+                             and 9 federal elections, it occurred to me that there were many unanswered questions about my electorate 
+                             and neighbourhood."),
+
+                           h4("Background"),
+                           p("My neighbourhood has a strong working class history.  The Australian Labor Party (ALP) has held the 
+                             Federal Division of Cooper (formerly Batman) for all but 10 years since Federation in 1901.  
+                             Similarly, the ALP has held the State District of Northcote for all but 1 year since its creation in 1927.  
+                             Federal representatives include an ALP Deputy Prime Minister and State representatives include an ALP Premier."),
+                           
+                           h4("Trending from ALP to Greens "),
+                           p("The demographics of Northcote has swung from the traditional blue collar ALP-supporter to the more 
+                             progressive, typically educated Greens' supporter.  The trend was sufficiently strong for the 
+                             Australian Greens to snatch the District of Northcote away from the ALP in a by-election in 2017, 
+                             though the ALP regained the seat in the statewide election in 2018, despite the Australian Greens 
+                             increasing their first-preference votes from the 2017 by-election. "),
+                           
+                           h4("Curiosity-driven Analysis "),
+                           p("This analysis started with some basic questions, which, when answered, led to more questions:"),
+                           tags$li("Which polling stations in Northcote most supported the Australian Greens?"),
+                           tags$li("Where are the different polling stations?"),
+                           tags$li("How many people tend to vote at the different stations?"),
+                           tags$li("How many enrolled voters failed to vote in the 2017 by-election?"),
+                           tags$li("How have Liberal voters divided their preferences between the ALP and the Greens over time?
+                              The Liberal party chose not to field a candidate in the 2017 by-election, which the 
+                              media assumed was an attempt to make mischief for the governing ALP."),
+                           
+                           h4("Data sources"),
+                           tags$li("Voting data was sourced from the ", a("Victorian Electoral Commission (VEC) website", 
+                                                                   href="https://www.vec.vic.gov.au/Results/results-state.html", target="_blank")
+                           ),
+                           tags$li("Polling station locations was sourced from my own local knowledge, 
+                           VEC advertisements in the back-issues of The Age and with some help from a friend."),
+                           tags$li("The electoral boundaries map shows the current (2018) boundaries, as per ",
+                           a("Spatial Datamart Victoria", href = "http://services.land.vic.gov.au/SpatialDatamart/index.jsp", target = "_blank"),
+                           ".  There have been some minor adjustments since the 1999 election along the northern border."),
+                           
+                           h4("Feedback"),
+                           p("Any feedback will be much appreciated:", a("pennydropper@gmail.com", target="_blank")),
+                           p("James Northrop")
                         )
                      )
+                     
             ),
             
             tabItem( "first_and_final_votes",
