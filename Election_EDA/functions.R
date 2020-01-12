@@ -396,7 +396,8 @@ plot_two_pp_by_booth_nondom <-
                          breaks = legend_list) +
 
             labs(title = str_c("Two party preferred share by polling station: ", p_booth, " highlighted", sep = ""), x = "") +
-      scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
+      scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y") +
+      theme(legend.position = "none")
     
     
     two_pp_by_booth_ggplotly <-
@@ -502,7 +503,7 @@ plot_votes_by_booth_all <- function(p_votes_by_booth_all = votes_by_booth_all, p
   votes_by_elect_booth_ggp <-
     votes_by_booth_prep %>% 
     
-    ggplot(aes(x = date, y = votes, text = hov_text, group = booth, shape = party_std, colour = party_std)) +
+    ggplot(aes(x = date, y = votes, text = hov_text, group = booth, colour = party_std, shape = party_std)) +
     # scale_y_log10("Votes (log scale)", labels = scales::comma) +
     scale_y_continuous("Votes", labels = scales::comma) +
     geom_point(size = 0.25, colour = "black") +
@@ -514,14 +515,9 @@ plot_votes_by_booth_all <- function(p_votes_by_booth_all = votes_by_booth_all, p
     
     scale_color_manual(name = "Polling station", values = party_colours(),
                        labels = legend_list %>% names(),
-                       breaks = legend_list)
-    # theme(legend.position = "none") 
+                       breaks = legend_list) +
+    scale_shape_discrete("Polling station")
 
-    # geom_text(data = votes_by_booth_prep %>% filter(booth == p_booth_sel, date == max(votes_by_booth_prep$date, na.rm = TRUE)), 
-    #           aes(label = booth), nudge_x = 500, vjust = c("left"), check_overlap = TRUE) +
-    # expand_limits(x = max(votes_by_booth_prep$date, na.rm = TRUE) + 1000,
-    #               y = 0)
-  
   votes_by_elect_booth_ggplotly <-
     ggplotly(votes_by_elect_booth_ggp, tooltip = "text") #%>%  
     # layout(legend = list(orientation = "h", y = -0.2))
@@ -585,7 +581,8 @@ plot_party_votes_by_elec <- function(p_party_votes_by_elec = party_votes_by_elec
     geom_point(data = didnt_vote_total, size = 1) +
     geom_line(data = didnt_vote_total, size = 0.25, na.rm = TRUE, linetype = "solid") +
 
-    scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y")
+    scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y") +
+    scale_y_continuous("Votes", labels = scales::comma)
   
   ggplotly(party_votes_by_elec_ggp, tooltip = "text")
 }
