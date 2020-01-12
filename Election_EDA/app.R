@@ -47,6 +47,8 @@ ui <-
       dashboardBody(
          # theme = "bootstrap.css",
          
+         tags$head(tags$style(HTML(".small-box {height: 150px}"))),
+
          # Set of tabs with reporting options
          
          tabItems(
@@ -75,9 +77,9 @@ ui <-
                            h4("Trending from ALP to Greens "),
                            p("The demographics of Northcote has swung from the traditional blue collar ALP-supporter to the more 
                              progressive, typically educated Greens' supporter.  The trend was sufficiently strong for the 
-                             Australian Greens to snatch the District of Northcote away from the ALP in a by-election in 2017, 
-                             though the ALP regained the seat in the statewide election in 2018, despite the Australian Greens 
-                             increasing their first-preference votes from the 2017 by-election. "),
+                             Australian Greens to snatch the District of Northcote away from the ALP in a by-election in 2017. 
+                             The ALP regained the seat in the statewide election in 2018 despite the Australian Greens 
+                             increasing their first-preference votes compared to their support in the 2017 by-election. "),
                            
                            h4("Curiosity-driven Analysis "),
                            p("This analysis started with some basic questions, which, when answered, led to more questions:"),
@@ -253,35 +255,43 @@ ui <-
             tabItem( "poll_map",
                      # Northcote map with year selector
                      
-                     fluidRow(
-                        box(
-                           selectInput("map_year",
-                                       "Select year to display on map:",
+                     sidebarLayout(
+                        sidebarPanel(
+                           radioButtons("map_year",
+                                       "Select election to display:",
                                        choices = elec_dates$elec_ID),
                            width = 2
                         ),
-                        valueBoxOutput("valbox_local_rem_out", width = 2)
-                     ),
-                     
-                     fluidRow(
-                        h4(textOutput("poll_map_heading"),
-                          style = "margin-left: 25px;")
-                     ),
-                     
-                     fluidRow(
-                        box(
-                           leafletOutput("booth_map", height = 450)
+                        
+                        mainPanel(
+                           width = 10,
                            
-                        ),
-                        box(
-                           plotlyOutput("plot_booth_votes_bar_plot2", height = 450)
-                        )
-                     ),
-                     
-                     fluidRow(
-                        h5("Two-party preferred and distributed preference votes data only available for ALP and Liberal candidates prior to 2006 election.  
+                           fluidRow(
+                              valueBoxOutput("valbox_local_rem_out", width = 2)
+                           ),
+                           
+                           fluidRow(
+                              h4(textOutput("poll_map_heading"),
+                                 style = "margin-left: 25px;")
+                           ),
+                           
+                           fluidRow(
+                              box(
+                                 leafletOutput("booth_map", height = 450)
+                                 
+                              ),
+                              box(
+                                 plotlyOutput("plot_booth_votes_bar_plot2", height = 450)
+                              )
+                           ),
+                           
+                           fluidRow(
+                              h5("Two-party preferred and distributed preference votes data only available for ALP and Liberal 
+                              candidates prior to 2006 election.  
                         From the 2006 election, distributed preference votes available for the 1st and 2nd placegetters.",
-                           style = "margin-left: 25px;")
+                                 style = "margin-left: 25px;")
+                           )
+                        )
                      )
             ),
             
@@ -290,7 +300,7 @@ ui <-
                      
                      sidebarLayout(
                         sidebarPanel(
-                           selectInput("two_pp_by_booth_nondom_plot_booth",
+                           radioButtons("two_pp_by_booth_nondom_plot_booth",
                                        "Select polling station to highlight:",
                                        choices = two_pp_by_booth_nondom %>% filter(votes > 0) %>%
                                           pull(booth) %>% unique() %>% sort(),
@@ -379,7 +389,7 @@ server <- function(input, output) {
       )
    })
    
-      output$party_votes_by_elec_plot <- renderPlotly({
+   output$party_votes_by_elec_plot <- renderPlotly({
       plot_party_votes_by_elec(party_votes_by_elec)
    })
    
