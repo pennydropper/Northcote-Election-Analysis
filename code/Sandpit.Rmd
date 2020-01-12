@@ -177,3 +177,214 @@ expand_two_pp_sum("2018")[1,] %>% pull(votes) %>% scales::comma() %>% str_c(.)
 
 ```
 
+# Two PP Valueboxes
+
+* Most recent total votes
+* Most recent share
+* Maximum total votes
+* Maximum share
+
+```{r}
+valbox_fpref_last_votes1 <- 
+  function() {
+    # Value box for the number of first preference votes to the leading party in last election
+    pref1_votes_party <-
+      party_votes_by_elec %>% 
+      arrange(date %>% desc, -votes) %>% 
+      mutate(year = year(date) %>% as.character())
+    
+    str_c(pref1_votes_party$votes[1] %>% scales::comma(), "\n",
+          "first pref votes to ", pref1_votes_party$party_std[1], " in ", pref1_votes_party$year[1])
+  }
+
+valbox_fpref_last_votes1()
+```
+
+```{r}
+
+valbox_poll_stn_votes <- function(p_booth = "Northcote South", p_max_last = c("last", "max"), 
+                                  p_dim = c("votes_sum", "votes_sh_elec", "votes_2pp_sh")) {
+  # Generate valuebox with specified dimensions
+  
+  votes_booth_sum <-
+    votes_by_booth_all %>% 
+    filter(booth != "All") %>% 
+    group_by(date) %>% 
+    mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    filter(booth == p_booth) %>% 
+    select(booth, year, votes_sum = votes, party_std, votes_sh_elec = votes_sh)
+  
+  votes_booth_2pp <-
+    two_pp_by_booth_nondom %>% 
+    filter(votes > 0, booth == p_booth) %>% 
+    mutate(year = format(date, "%Y")) %>% 
+    select(booth, year, votes_2pp_sum = votes, party_std, votes_2pp_sh = votes_sh)
+  
+  sort_dim <- "year"
+  sort_dim <- if (p_max_last[1] != "last") {p_dim[1]} else {"year"}
+  
+  votes_booth_sum <-
+    votes_booth_sum %>% 
+    full_join(votes_booth_2pp, by = c("booth", "year", "party_std")) %>% 
+    arrange(.data[[sort_dim]] %>% desc())
+  
+  votes_booth_sum %>% print()
+  
+  result <-
+    if (p_dim[1] %in% c("votes_2pp_sh", "votes_sh_elec")) {
+      votes_booth_sum$votes_2pp_sh[1] %>% scales::percent(accuracy = 0.1)
+    } else {
+      votes_booth_sum %>% 
+        pull(.data[[p_dim[1]]]) %>% 
+        head(1) %>% 
+        scales::comma()
+    }
+  
+  measure <-
+    case_when(
+      p_dim[1] == "votes_sum" ~ "Total votes",
+      p_dim[1] == "votes_sh_elec" ~ "Share of electorate",
+      p_dim[1] == "votes_2pp_sh" ~ str_c("Two-party-preferred for ", votes_booth_sum$party_std[1]),
+      TRUE ~ "NA"
+    )
+  
+  str_c(result, "\n",
+        str_c(measure, " recorded by ", p_booth, " in ", votes_booth_sum$year[1]))
+  
+}
+
+valbox_poll_stn_votes("Northcote South", p_max_last = "max", p_dim = c("votes_2pp_sh")) %>% print()
+```
+
+```{r}
+two_pp_by_booth_nondom %>% 
+      filter(votes > 0, booth == "Northcote South") %>% 
+  mutate(year = format(date, "%Y")) %>% 
+  select(booth, year, votes_2pp = votes, party_std, votes_2pp = votes_sh)
+```
+```{r}
+valbox_poll_stn_votes() %>% print()
+```
+
+```{r}
+starwars %>%
+  group_by(gender) %>%
+  summarise(mass_maximum = max(mass, na.rm = TRUE))
+```
+```{r}
+library(rlang)
+library(purrr)
+library(tidyverse)
+max_by <- function(data, var, by) {
+  data %>%
+    group_by(!!enquo(by)) %>%
+    summarise(maximum = max(!!enquo(var), na.rm = TRUE))
+}
+
+starwars %>% max_by(mass, by = gender)
+```
+```{r}
+max_by <- function(data, var, by) {
+  data %>%
+    group_by(!!enquo(by)) %>%
+    summarise(maximum = max(!!enquo(var), na.rm = TRUE))
+}
+
+starwars %>% max_by(mass, by = gender)
+```
+
+```{r}
+tot_enrols
+```
+```{r}
+elec_dates %>% 
+  mutate(enrolled = map_dbl(elec_ID, ~tot_enrols[[.]]))
+```
+```{r}
+first_pref %>% 
+  group_by(year) %>% 
+  summarise(fpref_sum = sum(votes, na.rm = TRUE)) %>% 
+  mutate(enrolled = map_dbl(year, ~tot_enrols[[.]]),
+         didnt_vote = enrolled - fpref_sum) %>% 
+  glimpse()
+```
+
+```{r}
+party_votes_by_elec %>% 
+    group_by(date) %>% 
+    mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(party_std = coalesce(party_std, "Informal") %>% fct_relevel("Informal", after = Inf),
+           hov_text = str_c(party_std, "<br>Votes: ", scales::comma(votes), " (", scales::percent(votes_sh, accuracy = 0.1), ")")) %>% 
+    complete(date, party_std) %>% 
+  glimpse()
+```
+```{r}
+plot_party_votes_by_elec <- function(p_party_votes_by_elec = party_votes_by_elec, p_incl_tot_enrol = FALSE){
+  # Plot party first pref votes by election  
+
+  voted <-  
+    p_party_votes_by_elec %>% 
+    filter(!is.na(party_std)) %>% # Excludes Informal votes from the number who voted
+    mutate(year = format(date, "%Y")) %>% 
+    group_by(year) %>% 
+    summarise(voted_sum = sum(votes, na.rm = TRUE)) %>% 
+    ungroup()
+
+  didnt_vote_total <-
+    merge_tot_votes_enrolled() %>% 
+    inner_join(voted, by = "year") %>% 
+    mutate(votes_sh = votes / voted_sum)
+    # select(date, booth, votes, party_std, hov_text)
+  
+  party_votes_by_elec_ggp <-
+    p_party_votes_by_elec %>% 
+    mutate(year = format(date, "%Y")) %>% 
+    inner_join(voted, by = "year") %>% 
+    mutate(votes_sh = votes / voted_sum,
+           party_std = coalesce(party_std, "Informal") %>% fct_relevel("Informal", after = Inf),
+           hov_text = str_c(party_std, "<br>Votes: ", scales::comma(votes), " (", scales::percent(votes_sh, accuracy = 0.1), ")")) %>% 
+    complete(date, party_std) %>% 
+    
+    ggplot(aes(x = date, y = votes, group = party_std, text = hov_text, colour = party_std, fill = party_std)) +
+    geom_point(size = 1) +
+    geom_line(size = 0.25, na.rm = TRUE, linetype = "solid") +
+    
+    geom_point(data = didnt_vote_total) +
+    geom_line(data = didnt_vote_total, size = 0.25, na.rm = TRUE) +
+    
+    scale_fill_manual("Party", values = party_colours()) +
+    scale_colour_manual("Party", values = party_colours()) +
+    # scale_y_log10(label = scales::comma) +
+    labs(title = "Total first preference votes by party", x = "") +
+    expand_limits(y = 0) +
+    # geom_line(data = votes_by_booth_all %>% filter(booth == "All"), colour = "grey", size = 0.25, aes(group = booth)) +
+    
+    geom_point(data = didnt_vote_total, size = 1) +
+    geom_line(data = didnt_vote_total, size = 0.25, na.rm = TRUE, linetype = "solid") +
+
+    scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y") +
+    scale_y_continuous("Votes", labels = scales::comma)
+  
+  if (p_incl_tot_enrol) {
+    tb_tot_enrol <-
+      didnt_vote_total %>% 
+      mutate(hov_text = str_c("Total enrolled:<br>", scales::comma(tot_enrols)),
+             party_std = "Total") 
+    
+    party_votes_by_elec_ggp <- 
+      party_votes_by_elec_ggp +
+      geom_point(data = tb_tot_enrol, size = 1) +
+      geom_line(data = tb_tot_enrol, size = 0.25, na.rm = TRUE, aes(y = tot_enrol)) 
+    
+  }
+  
+  ggplotly(party_votes_by_elec_ggp, tooltip = "text")
+}
+
+plot_party_votes_by_elec(p_incl_tot_enrol = TRUE)
+
+
+```
+
