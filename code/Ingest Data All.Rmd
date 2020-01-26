@@ -148,6 +148,14 @@ for (i in seq_along(first_pref_lst)) {
     html_nodes(first_pref_css_sels) %>% 
     html_text() %>%
     keep(., ~ !str_detect(., "^[:blank:]")) 
+  
+  # A better solution would have had this but unable to get it to work
+  # read_html(first_pref_url) %>% 
+  # html_nodes("table") %>%   # Extract all of the tables on the page
+  # purrr::pluck(3) %>%   # The 3rd table is the one we're after
+  # html_table(fill = TRUE) %>%    # Have to fill = TRUE due to an inconsistent number of columns
+  # select_if(~!is.na(names(.)))  # This command is not working.
+
 
   num_cols <- 
     first_pref %>% 
