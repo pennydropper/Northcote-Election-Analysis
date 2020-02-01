@@ -160,15 +160,16 @@ party_colours <- function() {
     append(c("Informal" = "grey", "Total" = "black", "white" = "white", "Didnt Vote" = "brown"))
 }
 
-print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec = "2018") {
+print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec = "2018", p_booth = "") {
   # Print leaflet map of polling booths
   
   p_votes_by_phys_booth <-
     p_votes_by_phys_booth %>% 
     filter(year == p_elec) %>% 
     mutate(alp_sh = 1 - votes_sh) %>% 
-    mutate(hov_text = str_c(booth, "<br>", booth_addr, "<br>Votes: ", votes, "<br>2pp to ", party_std, ": ", scales::percent(votes_sh, accuracy = 0.1) ))
-    
+    mutate(hov_text = str_c(booth, "<br>", booth_addr, "<br>Votes: ", 
+                            votes, "<br>2pp to ", party_std, ": ", scales::percent(votes_sh, accuracy = 0.1) )) 
+  
   
   party2 <-
     p_votes_by_phys_booth %>% 
@@ -176,7 +177,7 @@ print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec 
     pull(party_std) %>% 
     head(1) %>% 
     str_replace(., "Australian ", "") # Trim Australian Greens to Greens
-
+  
   pal_spect <- "RdYlGn"  # Assume that Greens are the 2nd party
   
   if (party2 == "Liberal") { pal_spect <- "RdBu" } # i.e. Liberals are the 2nd party
@@ -186,8 +187,9 @@ print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec 
     domain = p_votes_by_phys_booth$votes_sh,
     reverse = FALSE)
   
-  leaflet(options = leafletOptions(minZoom = 12,
-                                   maxZoom = 16)) %>%
+  booth_map <- 
+    leaflet(options = leafletOptions(minZoom = 12,
+                                     maxZoom = 16)) %>%
     addProviderTiles("Esri.WorldTopoMap") %>%
     
     addPolygons(data = nrthct_plgon,
@@ -208,7 +210,7 @@ print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec 
                      weight = 1,
                      fillColor = "black",
                      fill = TRUE) %>% 
-
+    
     addCircleMarkers(data = p_votes_by_phys_booth %>% filter(year == p_elec),
                      radius = ~votes / 100,
                      popup = ~hov_text,
@@ -228,6 +230,18 @@ print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec 
               labels = palette(),
               # opacity = .5,
               labFormat = scales::percent)
+  
+  if (has_element(p_votes_by_phys_booth$booth, p_booth)) {
+    booth_map <-
+      booth_map %>% 
+      addPopups(data = p_votes_by_phys_booth %>% filter(year == p_elec, booth == p_booth),
+                popup = ~booth,
+                lat = ~lat,
+                lng = ~lon)
+    
+  }
+  
+  booth_map
   
 }
 
@@ -754,7 +768,7 @@ plot_booth_votes_bar <- function(p_year = "2018", p_votes_by_booth_all = votes_b
          x = "", y = "Votes") +
     coord_flip()
   
-  ggplotly(votes_by_booth_all_ggp, tooltip = "text")
+  ggplotly(votes_by_booth_all_ggp, tooltip = "text", source = "booth_votes_bar")
 
 }
 
@@ -1255,6 +1269,51 @@ valbox_poll_stn_votes <- function(p_booth = "Northcote South", p_max_last = c("l
         color = p_color,
         # icon = icon()
         width = 2)
+  
+}
+
+conv_html_to_table <- function(.html_raw, .tbl_num) {
+  # Convert html text to a table
+  
+  tbl_raw <-
+    .html_raw %>% 
+    html_nodes("table") %>% 
+    purrr::pluck(.tbl_num) %>% 
+    html_table(fill = TRUE)
+  
+  tbl_raw_nms <-
+    tbl_raw %>% 
+    names() %>% 
+    keep(~!is.na(.))
+  
+  tbl_raw <-
+    tbl_raw %>% 
+    fix_df(unique = TRUE) %>% 
+    select_at(vars(-starts_with("NA.")))
+  
+  tbl_head <-
+    tbl_raw %>% 
+    slice(1) %>% 
+    unlist() %>% 
+    enframe("head_raw", "row1_raw") %>% 
+    mutate(raw_nms = tbl_raw_nms,
+           head_final = if_else(str_detect(head_raw, "^X\\.*\\d*"), row1_raw, raw_nms),
+           party = if_else(str_detect(head_raw, "^X\\.*\\d*"), NA_character_, 
+                           if_else(row1_raw == "", "INDEP", row1_raw)))
+  
+  head_ren <-
+    tbl_head %>% 
+    select(head_final, head_raw) %>% 
+    deframe()
+  
+  tbl_raw %>% 
+    rename(!!!head_ren) %>% 
+    tail(-1) %>% 
+    head(-1) %>% 
+    map_df(parse_guess) %>% 
+    filter_all(all_vars(!is.na(.))) 
+  
+  # This is the tidied table. Can also return the table details
   
 }
 
