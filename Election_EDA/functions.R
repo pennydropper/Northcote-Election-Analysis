@@ -394,7 +394,8 @@ plot_two_pp_by_booth_nondom <-
       p_two_pp_by_booth_nondom %>% 
       filter(booth != p_booth) %>% # filter out the selected polling station as it will be added later
       ggplot(aes(x = date, y = votes_sh, shape = party_std, group = booth, text = hov_text, colour = party_std)) +
-      geom_line(aes(colour = NULL, shape = NULL), na.rm = TRUE, size = 0.15, colour = "grey", show.legend = FALSE, linetype = "dotted") +
+      geom_line(aes(colour = NULL, shape = NULL), na.rm = TRUE, size = 0.15, colour = "grey", 
+                show.legend = FALSE, linetype = "dotted") +
       geom_line(na.rm = TRUE, size = 0.15, colour = "grey", show.legend = FALSE) +
       geom_point(na.rm = TRUE, size = 0.5, colour = "grey", show.legend = FALSE) +
       geom_hline(yintercept = 0.5, linetype = 2, size = 0.5, colour = "grey", show.legend = FALSE) +
@@ -444,7 +445,8 @@ rmv_invalid_leg <- function(plotly_x, .legend_list) {
   
 }
 
-cre_votes_by_booth_elec <- function(p_first_pref = first_pref, p_elec_dates = elec_dates, p_two_pp_by_booth_nondom = two_pp_by_booth_nondom) {
+cre_votes_by_booth_elec <- function(p_first_pref = first_pref, p_elec_dates = elec_dates, 
+                                    p_two_pp_by_booth_nondom = two_pp_by_booth_nondom) {
   p_first_pref %>% 
     inner_join(p_elec_dates %>% select(year = elec_ID, date), by = "year") %>% 
     group_by(date, booth, year) %>% 
@@ -478,7 +480,8 @@ plot_votes_by_booth <- function(p_votes_by_booth_all = votes_by_booth_all, p_lum
     group_by(date) %>% 
     mutate(votes_sh = votes / sum(if_else(booth_ggp == "All", votes, 0), na.rm = TRUE)) %>% 
     ungroup %>% 
-    mutate(hov_text = str_c(booth_ggp, ": ", scales::comma(votes), "<br>Share of All: ", scales::percent(votes_sh, accuracy = 0.1))) %>% 
+    mutate(hov_text = str_c(booth_ggp, ": ", scales::comma(votes), "<br>Share of All: ", 
+                            scales::percent(votes_sh, accuracy = 0.1))) %>% 
     
     ggplot(aes(x = date, y = votes)) +
     # scale_y_continuous("Votes", labels = scales::comma) +
@@ -622,7 +625,8 @@ plot_distn_party_prefs <- function(p_party_from = "Liberal", p_pref_w_party = pr
     group_by(year) %>% 
     mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
     ungroup %>% 
-    mutate(hovtext = str_c(party_std.to, " (", to_cand, ")<br>", votes, " votes. (", scales::percent(votes_sh, accuracy = 0.1), ")")) %>%
+    mutate(hovtext = str_c(party_std.to, " (", to_cand, ")<br>", votes, " votes. (", 
+                           scales::percent(votes_sh, accuracy = 0.1), ")")) %>%
     # filter(year == "2017") %>% arrange(party_std.to) %>% 
     full_join(p_elec_dates %>% select(year = elec_ID) %>% filter(year >= "2010"), by = "year") %>% 
     
@@ -648,7 +652,8 @@ plot_distn_party_prefs_rec <- function(p_party_to = c("Australian Greens", "Aust
     group_by(year) %>% 
     mutate(votes_sh = votes / sum(votes, na.rm = TRUE)) %>% 
     ungroup %>% 
-    mutate(hovtext = str_c(party_std.from, " (", from_cand, ")<br>", votes, " votes. (", scales::percent(votes_sh, accuracy = 0.1), ")<br>",
+    mutate(hovtext = str_c(party_std.from, " (", from_cand, ")<br>", votes, " votes. (", 
+                           scales::percent(votes_sh, accuracy = 0.1), ")<br>",
                            "distributed to ", party_std.to)) %>%
     # filter(year == "2017") %>% arrange(party_std.to) %>% 
     full_join(p_elec_dates %>% select(year = elec_ID) %>% filter(year >= "2010"), by = "year") %>% 
@@ -692,7 +697,8 @@ plot_pref_distn_sel_cand <- function(p_candidate = "BISHOP, Robert", p_pref_w_pa
   pref_w_cand_ggp <- 
     p_pref_w_party %>% 
     filter(from_cand == p_candidate) %>% 
-    mutate(hovtext = str_c(party_std.to, " (", to_cand, ")<br>", votes, " votes. (", scales::percent((votes / votes_sum), accuracy = 0.1), ")")) %>% 
+    mutate(hovtext = str_c(party_std.to, " (", to_cand, ")<br>", votes, " votes. (", 
+                           scales::percent((votes / votes_sum), accuracy = 0.1), ")")) %>% 
     full_join(elec_dates %>% select(year = elec_ID) %>% filter(year >= "2010"), by = "year") %>%
     # glimpse()
     
@@ -720,7 +726,8 @@ cre_votes_by_phys_booth <- function(p_votes_by_booth_all = votes_by_booth_all, p
                           by = c("booth" = "booth", "year" = "year_fr", "year" = "year_to"),
                           match_fun = list(`==`, `>=`, `<=`)) %>% 
     rename(booth = booth.x) %>% 
-    mutate(hov_text = str_c(booth, "<br>", booth_addr, "<br>Votes: ", votes, "<br>2pp to ", party_std, ": ", scales::percent(votes_sh, accuracy = 0.1) )) %>% 
+    mutate(hov_text = str_c(booth, "<br>", booth_addr, "<br>Votes: ", votes, "<br>2pp to ", 
+                            party_std, ": ", scales::percent(votes_sh, accuracy = 0.1) )) %>% 
     group_by(year) %>% 
     mutate(votes_sh_scale = scales::rescale(votes_sh)) %>% # Scale votes for colour coding on chart
     ungroup
@@ -793,10 +800,12 @@ first_final_votes_no_distn <- function(p_year = "2002") {
     left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
     mutate(votes_redist = coalesce(as.double(votes_max), votes_min) - votes_min,
            votes_max_pool = sum(votes_max, na.rm = TRUE),
-           hov_text = str_c("1st pref: ", scales::comma(votes_min), " (", scales::percent((votes_min / votes_min_sum), accuracy = 0.1), ")",
+           hov_text = str_c("1st pref: ", scales::comma(votes_min), " (", 
+                            scales::percent((votes_min / votes_min_sum), accuracy = 0.1), ")",
                             ". Pref distn: ", if_else(is.na(votes_max), "NA", 
                                     str_c(scales::comma(votes_redist), ".<br>Final: ",
-                                          scales::comma(votes_max), " (", scales::percent((votes_max / votes_max_pool), accuracy = 0.1), ")")))) %>% 
+                                          scales::comma(votes_max), " (", 
+                                          scales::percent((votes_max / votes_max_pool), accuracy = 0.1), ")")))) %>% 
     pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
     mutate(hov_text = str_c(readable_nm(candidate), ", ", coalesce(party_std, "NA"), "<br>", hov_text),
            votes = as.integer(votes))
@@ -818,13 +827,16 @@ first_final_votes_with_distn <- function(p_distn = distn, p_year =  "2017") {
     ungroup() %>% 
     left_join(cands_std %>% select(-party_colour), by = c("candidate", "year")) %>% 
     left_join(two_pp_sum, by = c("year", "candidate")) %>%
-    mutate(votes_max = if_else((rounds_rank_1 > 2 & cand_rank <= 2), coalesce(votes, votes_max), votes_max), # accomodate scenarios where distn data stops before last 2 candidates
+    mutate(votes_max = if_else((rounds_rank_1 > 2 & cand_rank <= 2), coalesce(votes, votes_max), votes_max), 
+           # accomodate scenarios where distn data stops before last 2 candidates
            votes_max_pool = sum(if_else(cand_rank <= 2, votes_max, 0L), na.rm = TRUE),
            votes_redist = votes_max - votes_min,
-           hov_text = str_c("1st pref: ", scales::comma(votes_min), " (", scales::percent((votes_min / votes_min_sum), accuracy = 0.1), ")",
+           hov_text = str_c("1st pref: ", scales::comma(votes_min), 
+                            " (", scales::percent((votes_min / votes_min_sum), accuracy = 0.1), ")",
                             ". Pref distn: ", if_else(is.na(votes_max), "NA", 
                                     str_c(scales::comma(votes_redist), ".<br>Final: ", 
-                                          scales::comma(votes_max), " (", scales::percent((votes_max / votes_max_pool), accuracy = 0.1), ")")))) %>% 
+                                          scales::comma(votes_max), " (", 
+                                          scales::percent((votes_max / votes_max_pool), accuracy = 0.1), ")")))) %>% 
     select(-votes) %>%
     pivot_longer(cols = c(votes_min, votes_max, votes_redist), names_to = "vote_rnd", values_to = "votes") %>% 
     mutate(hov_text = str_c(readable_nm(candidate), ", ", party_std, "<br>", hov_text))
@@ -943,7 +955,8 @@ cre_distn_gap <- function(p_two_pp_sum = two_pp_sum, p_distn = distn, p_pref = p
   distn_gap_last2 <-
     # shows the gap between the distribution data and the 2 candidate preferential data
     two_pp_sum %>% 
-    inner_join(distn %>% group_by(year, candidate) %>% summarise(votes = max(votes)), by = c("year", "candidate"), suffix = c("", ".distn")) %>% 
+    inner_join(distn %>% group_by(year, candidate) %>% summarise(votes = max(votes)), 
+               by = c("year", "candidate"), suffix = c("", ".distn")) %>% 
     mutate(votes_last_rnd = votes - votes.distn ) 
   
   p_distn %>% 
@@ -1317,3 +1330,20 @@ conv_html_to_table <- function(.html_raw, .tbl_num) {
   
 }
 
+fix_df <- function(x, check.names=TRUE, unique=TRUE) {
+  if (check.names) {
+    col_names <- make.names(colnames(x), unique=unique)
+    colnames(x) <- col_names
+  }
+  x
+}
+
+rank_booth_votes <- function(p_year = "2018", p_votes_by_booth_all = votes_by_booth_all){
+  # Returns tibble with booths in ascending order
+  
+  votes_by_booth_all %>% 
+    filter(year == p_year) %>% 
+    filter(booth != "All") %>% 
+    arrange(votes)
+  
+}

@@ -46,7 +46,7 @@ ggplotly(bc_booths)
 
 ```{r}
 
-plot_booth_votes_bar("1999", votes_by_booth_all)
+plot_booth_votes_bar("2010", votes_by_booth_all)
 
 ```
 
@@ -96,7 +96,7 @@ two_pp_by_booth_nondom <-
 ```
 
 ```{r}
-plot_two_pp_by_booth_nondom(p_booth = "Westgarth")
+plot_two_pp_by_booth_nondom(p_booth = "Northcote South")
 ```
 
 ```{r}
@@ -122,6 +122,11 @@ votes_by_booth_all <-
 plot_votes_by_booth(votes_by_booth_all, p_lump_n = 8)
 
 ```
+```{r}
+plot_two_pp_by_booth_nondom(p_booth = "Fairfield")
+```
+
+
 ```{r votes_by_elect_booth_ggp}
 
 plot_votes_by_booth_all(votes_by_booth_all, "Fairfield") 
@@ -201,6 +206,6 @@ votes_by_phys_booth <-
 
 ```{r}
 
-print_booth_map(votes_by_phys_booth, "2014")
+print_booth_map(votes_by_phys_booth, "2017")
 ```
 

@@ -361,8 +361,8 @@ plot_party_votes_by_elec <- function(p_party_votes_by_elec = party_votes_by_elec
     expand_limits(y = 0) +
     # geom_line(data = votes_by_booth_all %>% filter(booth == "All"), colour = "grey", size = 0.25, aes(group = booth)) +
     
-    geom_point(data = didnt_vote_total, size = 1) +
-    geom_line(data = didnt_vote_total, size = 0.25, na.rm = TRUE, linetype = "solid") +
+    # geom_point(data = didnt_vote_total, size = 1) +
+    # geom_line(data = didnt_vote_total, size = 0.25, na.rm = TRUE, linetype = "solid") +
 
     scale_x_date(NULL, breaks = elec_dates$date, date_labels = "%b<br>-%y") +
     scale_y_continuous("Votes", labels = scales::comma)
@@ -386,5 +386,94 @@ plot_party_votes_by_elec <- function(p_party_votes_by_elec = party_votes_by_elec
 plot_party_votes_by_elec(p_incl_tot_enrol = TRUE)
 
 
+```
+
+```{r}
+print_booth_map <- function(p_votes_by_phys_booth = votes_by_phys_booth, p_elec = "2018", p_booth = "") {
+  # Print leaflet map of polling booths
+  
+  p_votes_by_phys_booth <-
+    p_votes_by_phys_booth %>% 
+    filter(year == p_elec) %>% 
+    mutate(alp_sh = 1 - votes_sh) %>% 
+    mutate(hov_text = str_c(booth, "<br>", booth_addr, "<br>Votes: ", 
+                            votes, "<br>2pp to ", party_std, ": ", scales::percent(votes_sh, accuracy = 0.1) )) 
+  
+  
+  party2 <-
+    p_votes_by_phys_booth %>% 
+    filter(year == p_elec) %>% 
+    pull(party_std) %>% 
+    head(1) %>% 
+    str_replace(., "Australian ", "") # Trim Australian Greens to Greens
+  
+  pal_spect <- "RdYlGn"  # Assume that Greens are the 2nd party
+  
+  if (party2 == "Liberal") { pal_spect <- "RdBu" } # i.e. Liberals are the 2nd party
+  
+  pal <- colorNumeric(
+    palette = pal_spect,
+    domain = p_votes_by_phys_booth$votes_sh,
+    reverse = FALSE)
+  
+  booth_map <- 
+    leaflet(options = leafletOptions(minZoom = 12,
+                                   maxZoom = 16)) %>%
+    addProviderTiles("Esri.WorldTopoMap") %>%
+    
+    addPolygons(data = nrthct_plgon,
+                color = "#c994c7", weight = 1, smoothFactor = 0.5,
+                opacity = 1.0, fillOpacity = 0.2,
+                # fillColor = ~colorQuantile("YlOrRd", ALAND)(ALAND),
+                highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                    bringToFront = FALSE)) %>% 
+    
+    addCircleMarkers(data = p_votes_by_phys_booth %>% filter(year == p_elec),
+                     radius = 0.5,
+                     # popup = ~hov_text,
+                     label = ~booth,
+                     lat = ~lat,
+                     lng = ~lon,
+                     labelOptions = labelOptions(permanent = FALSE),
+                     color = "black",
+                     weight = 1,
+                     fillColor = "black",
+                     fill = TRUE) %>% 
+    
+    addCircleMarkers(data = p_votes_by_phys_booth %>% filter(year == p_elec),
+                     radius = ~votes / 100,
+                     popup = ~hov_text,
+                     label = ~booth,
+                     lat = ~lat,
+                     lng = ~lon,
+                     labelOptions = labelOptions(permanent = FALSE),
+                     color = "black",
+                     weight = 1,
+                     fillColor = ~pal(votes_sh),
+                     fill = TRUE) %>% 
+    
+    addLegend(position = "topright",
+              title = str_c(party2, " 2pp<br> vs ALP"), 
+              pal = pal, 
+              values = p_votes_by_phys_booth$votes_sh,
+              labels = palette(),
+              # opacity = .5,
+              labFormat = scales::percent)
+  
+  if (has_element(p_votes_by_phys_booth$booth, p_booth)) {
+    booth_map <-
+      booth_map %>% 
+      addPopups(data = p_votes_by_phys_booth %>% filter(year == p_elec, booth == p_booth),
+                popup = ~booth,
+                lat = ~lat,
+                lng = ~lon)
+    
+  }
+  
+  booth_map
+  
+}
+
+print_booth_map(p_booth = "Westgarth")
 ```
 

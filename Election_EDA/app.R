@@ -339,21 +339,23 @@ ui <-
 # Define server logic required to draw a histogram
 server <- function(input, output) {
    
+   booth_sel <- reactiveVal("")
+   
    output$booth_map <- renderLeaflet({
       # Plot of electorate with booths (polling stations)
       
-      print_booth_map(votes_by_phys_booth, input$map_year)
+      print_booth_map(votes_by_phys_booth, input$map_year, booth_sel())
    })
    
    output$poll_map_heading <- renderText({
       str_c("Where people voted and how neighbourhoods voted in ", input$map_year)
-   })
-   
-   output$plot_booth_votes_bar_plot <- renderPlotly({
-      plot_booth_votes_bar(input$plot_booth_votes_bar_year, votes_by_booth_all)
+      
    })
    
    output$plot_booth_votes_bar_plot2 <- renderPlotly({
+      booth_sel_ind <- event_data("plotly_click", source = "booth_votes_bar")$y[1]
+      booth_sel_nm <- rank_booth_votes(input$map_year, votes_by_booth_all)$booth[booth_sel_ind]
+      booth_sel(booth_sel_nm)
       plot_booth_votes_bar(input$map_year, votes_by_booth_all)
    })
    
