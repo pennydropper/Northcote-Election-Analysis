@@ -3,5 +3,5 @@
 .RData
 .Ruserdata
 *.html
-data/*
-*.rds
+*.zip
+SDM565161/*
