@@ -18,7 +18,10 @@ This analysis started with some basic questions, which, when answered, led to mo
 * How many enrolled voters failed to vote in the 2017 by-election?
 * How have Liberal voters divided their preferences between the ALP and the Greens over time? The Liberal party chose not to field a candidate in the 2017 by-election, which the media assumed was an attempt to make mischief for the governing ALP.
 
-**How to read the code**
+**How to read the code**  
 The most "polished" code is in the Election_EDA directory, which contains the code and data for the Shiny app. Apart from app.R, there is functions.R which contains the functions that feed into app.R, as well as a data directory with the pre-processed directory.
 
 The "raw" code that scraped the Victorian Election data is in the *code* directory.  This app started out as a project to develop my R skills, so there are a number of cringy commands - please bear with me.
+
+**Published dashboard**  
+The published dashboard is located at [https://pennydropper.shinyapps.io/Election_EDA/](https://pennydropper.shinyapps.io/Election_EDA/)
