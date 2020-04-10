@@ -1285,14 +1285,17 @@ valbox_poll_stn_votes <- function(p_booth = "Northcote South", p_max_last = c("l
   
 }
 
-conv_html_to_table <- function(.html_raw, .tbl_num) {
+conv_html_to_table <- function(.html_raw, .tbl_num, .skip_r = 1L) {
   # Convert html text to a table
+  
+  conv_res <- vector("list", 2L) %>% 
+    set_names(c("parties", "table"))
   
   tbl_raw <-
     .html_raw %>% 
     html_nodes("table") %>% 
     purrr::pluck(.tbl_num) %>% 
-    html_table(fill = TRUE)
+    html_table(fill = TRUE) 
   
   tbl_raw_nms <-
     tbl_raw %>% 
@@ -1301,7 +1304,7 @@ conv_html_to_table <- function(.html_raw, .tbl_num) {
   
   tbl_raw <-
     tbl_raw %>% 
-    fix_df(unique = TRUE) %>% 
+    fix_df(unique = TRUE) %>% # Correct the column names, if required
     select_at(vars(-starts_with("NA.")))
   
   tbl_head <-
@@ -1310,23 +1313,34 @@ conv_html_to_table <- function(.html_raw, .tbl_num) {
     unlist() %>% 
     enframe("head_raw", "row1_raw") %>% 
     mutate(raw_nms = tbl_raw_nms,
-           head_final = if_else(str_detect(head_raw, "^X\\.*\\d*"), row1_raw, raw_nms),
+           head_final = case_when(str_detect(head_raw, "^X\\.*\\d+") ~ row1_raw,
+                                  head_raw == "X" ~ head_raw,
+                                  TRUE ~ raw_nms),
            party = if_else(str_detect(head_raw, "^X\\.*\\d*"), NA_character_, 
                            if_else(row1_raw == "", "INDEP", row1_raw)))
   
-  head_ren <-
+  tbl_head %>% 
+    filter(!is.na(party)) %>%
+      # only want the actual candidate
+    select(head_final, party) %>% 
+    deframe()
+    
+  conv_res[["parties"]] <-
+    head_ren <-
     tbl_head %>% 
     select(head_final, head_raw) %>% 
     deframe()
   
-  tbl_raw %>% 
+  conv_res[["table"]] <- 
+    tbl_raw %>% 
     rename(!!!head_ren) %>% 
-    tail(-1) %>% 
-    head(-1) %>% 
-    map_df(parse_guess) %>% 
-    filter_all(all_vars(!is.na(.))) 
+    slice(-c(0:.skip_r, n())) %>%  # Skip first rows and last row
+    mutate_if(is.character, parse_guess) %>% 
+    filter_all(any_vars(!is.na(.))) 
   
   # This is the tidied table. Can also return the table details
+  
+  conv_res
   
 }
 
